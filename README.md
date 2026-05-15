@@ -13,8 +13,8 @@ more to come.
 
 ## Live
 
-- Production: [pai.ink](https://pai.ink) *(domain pending — currently served from `paink-d19o.ipfs.4everland.app`)*
-- Source: https://github.com/pppop00/pai.ink
+- Production: [www.paiink.com](https://www.paiink.com)
+- Source: https://github.com/pppop00/paiink
 - Schema: [`/schemas/ai-audit/v1.json`](./schemas/ai-audit/v1.json) (CC0)
 
 ## Repo layout
@@ -122,12 +122,12 @@ What it does:
 2. Commits with `unpublish: <title>` + your reason.
 3. Pushes. 4EVERLAND rebuilds in ~60–90s and the live URL goes 404.
 
-**Caveat:** historical per-deploy IPFS CIDs are immutable. A reader who has the
-old `paink-<hash>-pppop00.ipfs.4everland.app` URL can still reach the
-unpublished article via that snapshot. If you need to scrub a file from IPFS
-entirely (because it's defamatory, contains PII, etc.), that's a different
-operation — contact 4EVERLAND support to unpin the CID, and accept that
-public IPFS gateways may have already cached it.
+**Caveat:** historical IPFS CIDs are immutable. A reader who has an old
+deployment-pinned CID can still reach the unpublished article through public
+IPFS gateways. If you need to scrub a file from IPFS entirely (because it's
+defamatory, contains PII, etc.), that's a different operation — ask the
+hosting provider to unpin the CID, and accept that public IPFS gateways may
+have already cached it.
 
 Flags: `--dry-run`, `--no-push`, `--no-commit`, `--yes` (skip confirmation).
 
@@ -145,7 +145,7 @@ If your skill is still private, the article will still publish (4EVERLAND doesn'
 
 If you don't have write access to this repo:
 
-1. Fork `pppop00/pai.ink`.
+1. Fork `pppop00/paiink`.
 2. Run `tools/publish.py` against your skill output (it commits to your fork).
 3. Open a PR back to `main`.
 4. CI runs `verify_audit.py` with `--pr-author <your-github>`.

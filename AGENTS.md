@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-Conventions for AI assistants (Claude Code, etc.) working in this repository.
+Conventions for AI assistants (Codex, etc.) working in this repository.
 Humans should read `README.md` first.
 
 ## Project at a glance

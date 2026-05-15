@@ -130,11 +130,37 @@ def _shell(*, title: str, body: str, base: str, active: str | None = None,
   <div><a href="{base or './'}">pai.ink</a> · AI 写作，公开可验证</div>
   <div>
     <a href="{base}about.html">关于</a> ·
-    <a href="https://github.com/pppop00/pai.ink">GitHub</a> ·
+    <a href="https://github.com/pppop00/paiink">GitHub</a> ·
     <a href="{base}schemas/ai-audit/v1.json">Schema</a>
   </div>
 </footer>
 </div>
+<script>
+(function () {{
+  if (!window.matchMedia('(pointer: fine)').matches) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.createElement('div');
+  c.className = 'cursor';
+  document.body.appendChild(c);
+  let x = 0, y = 0, raf = 0;
+  window.addEventListener('mousemove', function (e) {{
+    x = e.clientX; y = e.clientY;
+    if (!raf) raf = requestAnimationFrame(function () {{
+      c.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0) translate(-50%,-50%)';
+      raf = 0;
+    }});
+  }}, {{ passive: true }});
+  document.addEventListener('mouseleave', function () {{ c.classList.add('hidden'); }});
+  document.addEventListener('mouseenter', function () {{ c.classList.remove('hidden'); }});
+  const sel = 'a, button, summary, input, textarea, label, [role="button"], [data-clickable]';
+  document.addEventListener('mouseover', function (e) {{
+    if (e.target && e.target.closest && e.target.closest(sel)) c.classList.add('hovering');
+  }});
+  document.addEventListener('mouseout', function (e) {{
+    if (e.target && e.target.closest && e.target.closest(sel)) c.classList.remove('hovering');
+  }});
+}})();
+</script>
 </body>
 </html>
 """
@@ -145,8 +171,10 @@ def _article_link(article: dict, *, base: str) -> str:
     art = m.get("article", {})
     skill = m.get("skill", {})
     zone = art.get("category", "")
+    art_id = art.get("id", "")
     href = f"{base}{zone}/{article['slug']}/"
-    verify_href = f"{base}verify/{art.get('id', '')}/"
+    verify_href = f"{base}verify/{art_id}/"
+    discuss_href = f"{base}discuss/{art_id}/"
     title = _h(art.get("title", article["slug"]))
     dek = _h(art.get("subtitle", ""))
     meta_bits = [
@@ -162,23 +190,31 @@ def _article_link(article: dict, *, base: str) -> str:
     {dek_html}
     <p class="meta">{meta}</p>
   </a>
-  <a class="verify-link" href="{verify_href}">校验 →</a>
+  <div class="article-side">
+    <a class="side-link" href="{verify_href}">校验 →</a>
+    <a class="side-link" href="{discuss_href}">讨论 →</a>
+  </div>
 </div>"""
 
 
 # ---------- pages ----------
 
+_ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+
+
 def write_landing(articles: dict[str, list[dict]]) -> None:
     parts: list[str] = []
     parts.append("""<section class="hero">
   <h1>AI 写作，公开可验证。</h1>
-  <p>每篇文章都附 <code style="font-family:var(--mono);font-size:14px;background:var(--accent-soft);padding:1px 6px;border-radius:3px">ai-audit.json</code> 出处证明：所用 skill 的公开仓库 commit、模型、输入、作者签名全部锁死，任何人可校验。</p>
+  <p>每篇文章都附 <code>ai-audit.json</code> 出处证明：所用 skill 的公开仓库 commit、模型、输入、作者签名全部锁死，任何人可校验。</p>
 </section>""")
 
-    for zone in ZONES:
+    for i, zone in enumerate(ZONES):
         key = zone["key"]
         items = articles.get(key, [])[:5]
+        roman = _ROMAN[i] if i < len(_ROMAN) else str(i + 1)
         parts.append(f"""<section class="zone">
+  <p class="zone-roman">第 {roman} 区</p>
   <div class="zone-head">
     <h2>{_h(_zone_title(zone))}</h2>
     <a class="more" href="{key}/">查看全部 →</a>
@@ -200,7 +236,6 @@ def write_landing(articles: dict[str, list[dict]]) -> None:
 def write_zone_index(zone: dict, items: list[dict]) -> None:
     key = zone["key"]
     body_parts = [f"""<section class="page-head">
-  <p class="eyebrow">分区 / Zone</p>
   <h1>{_h(_zone_title(zone))}</h1>
   <p class="lede">{_h(zone['lede'])}</p>
 </section>"""]
@@ -287,7 +322,8 @@ def write_verify_page(zone: str, slug: str, manifest: dict) -> None:
         body.append(f'  <dt>{_h(k)}</dt><dd>{v}</dd>')
     body.append("</dl>")
 
-    body.append(f'<p style="font-size:14px;margin-top:24px"><a href="{article_href}">→ 阅读文章</a> · <a href="{manifest_href}">下载 ai-audit.json</a></p>')
+    discuss_href = f"../../discuss/{art_id}/"
+    body.append(f'<p style="font-size:14px;margin-top:24px"><a href="{article_href}">→ 阅读文章</a> · <a href="{discuss_href}">参与讨论 →</a> · <a href="{manifest_href}">下载 ai-audit.json</a></p>')
 
     body.append(f"""<details class="raw">
   <summary>完整 manifest (raw)</summary>
@@ -298,6 +334,102 @@ def write_verify_page(zone: str, slug: str, manifest: dict) -> None:
     out.mkdir(parents=True, exist_ok=True)
     (out / "index.html").write_text(
         _shell(title=f"校验 {art_id[:8]} — pai.ink", body="\n".join(body), base="../../")
+    )
+
+
+def write_discuss_page(zone: str, slug: str, manifest: dict) -> None:
+    """Companion page for comments / likes / bookmarks. Article HTML is never
+    touched (preserves content_sha256). All interactions live here, keyed by
+    article id. Backend not yet wired — this is UI shell only."""
+    art = manifest.get("article", {})
+    skill = manifest.get("skill", {})
+    art_id = art.get("id")
+    if not art_id:
+        return
+
+    article_href = f"../../{zone}/{slug}/"
+    verify_href = f"../../verify/{art_id}/"
+    title = _h(art.get("title", slug))
+    subtitle = _h(art.get("subtitle", ""))
+    author_name = _h(_author_name(manifest))
+    skill_name = _h(skill.get("name", ""))
+    date = _date_of(manifest=manifest, slug=slug)
+    meta_bits = [b for b in (author_name, skill_name, date) if b]
+    meta = '<span class="sep">·</span>'.join(meta_bits)
+    dek_html = f'<p class="discuss-dek">{subtitle}</p>' if subtitle else ''
+
+    body = f"""<section class="discuss-head">
+  <p class="eyebrow">DISCUSSION · 讨论</p>
+  <h1>{title}</h1>
+  {dek_html}
+  <p class="discuss-meta">{meta}</p>
+  <div class="discuss-back">
+    <a href="{article_href}">← 阅读文章</a>
+    <span class="sep">·</span>
+    <a href="{verify_href}">校验 →</a>
+  </div>
+</section>
+
+<section class="actions">
+  <button class="action-btn" data-action="like" disabled>
+    <span class="action-icon" aria-hidden="true">♥</span>
+    <span class="action-label">点赞</span>
+    <span class="action-count">—</span>
+  </button>
+  <button class="action-btn" data-action="bookmark" disabled>
+    <span class="action-icon" aria-hidden="true">☆</span>
+    <span class="action-label">收藏</span>
+  </button>
+  <p class="action-note">登录后即可点赞与收藏</p>
+</section>
+
+<section class="auth">
+  <div class="auth-tabs" role="tablist">
+    <button class="auth-tab active" data-tab="login" role="tab" aria-selected="true">登录</button>
+    <button class="auth-tab" data-tab="register" role="tab" aria-selected="false">注册</button>
+  </div>
+
+  <form class="auth-form" data-form="login" autocomplete="on">
+    <label>邮箱<input type="email" name="email" required autocomplete="email"></label>
+    <label>密码<input type="password" name="password" required minlength="8" autocomplete="current-password"></label>
+    <button type="submit" class="auth-submit" disabled>登录（后端未连通）</button>
+  </form>
+
+  <form class="auth-form hidden" data-form="register" autocomplete="on">
+    <label>邮箱<input type="email" name="email" required autocomplete="email"></label>
+    <label>用户名<input type="text" name="username" required minlength="2" maxlength="32" pattern="[A-Za-z0-9_\\-]+" autocomplete="username"></label>
+    <label>密码<input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+    <button type="submit" class="auth-submit" disabled>注册（后端未连通）</button>
+  </form>
+
+  <p class="auth-note">⚠ 后端尚未连通 — 这是 UI 预览，表单提交不会生效。下一步会接 Cloudflare Worker + D1（注册/登录、点赞计数、评论存储）。</p>
+</section>
+
+<section class="comments">
+  <h2>评论 <span class="count">(0)</span></h2>
+  <p class="empty">暂无评论。等后端上线后，登录用户可发表第一条。</p>
+</section>
+
+<script>
+(function () {{
+  const tabs = document.querySelectorAll('.auth-tab');
+  const forms = document.querySelectorAll('.auth-form');
+  tabs.forEach(t => t.addEventListener('click', () => {{
+    const which = t.dataset.tab;
+    tabs.forEach(x => {{
+      const active = x.dataset.tab === which;
+      x.classList.toggle('active', active);
+      x.setAttribute('aria-selected', active ? 'true' : 'false');
+    }}));
+    forms.forEach(f => f.classList.toggle('hidden', f.dataset.form !== which));
+  }}));
+}})();
+</script>"""
+
+    out = DIST / "discuss" / art_id
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "index.html").write_text(
+        _shell(title=f"讨论 — {art.get('title', '')}", body=body, base="../../")
     )
 
 
@@ -316,7 +448,7 @@ def write_about() -> None:
   <ol>
     <li>用你的 AI skill（必须是<strong>公开</strong>仓库）生成 HTML 文章。</li>
     <li>跑 <code>tools/emit_audit.py</code> 生成 manifest，<code>tools/sign_audit.py sign</code> 加 ed25519 签名。</li>
-    <li>Fork <a href="https://github.com/pppop00/pai.ink">仓库</a> → 放到 <code>content/&lt;zone&gt;/&lt;slug&gt;/</code> → 开 PR。</li>
+    <li>Fork <a href="https://github.com/pppop00/paiink">仓库</a> → 放到 <code>content/&lt;zone&gt;/&lt;slug&gt;/</code> → 开 PR。</li>
     <li>CI 绿了就自动合并、上线。</li>
   </ol>
 
@@ -349,7 +481,7 @@ def main() -> None:
     shutil.copy(SITE / "style.css", DIST / "style.css")
     shutil.copy(SITE / "favicon.svg", DIST / "favicon.svg")
     # Publish the schema directory so /schemas/ai-audit/v1.json and friends
-    # are resolvable on the live site (paink-*.4everland.app today, pai.ink later).
+    # are resolvable on the live site (www.paiink.com).
     if SCHEMAS.is_dir():
         shutil.copytree(SCHEMAS, DIST / "schemas", dirs_exist_ok=True)
 
@@ -363,6 +495,7 @@ def main() -> None:
         write_zone_index(zone, articles.get(zone["key"], []))
         for a in articles.get(zone["key"], []):
             write_verify_page(zone["key"], a["slug"], a["manifest"])
+            write_discuss_page(zone["key"], a["slug"], a["manifest"])
     write_about()
 
     print(f"built {DIST.relative_to(ROOT)}/")

@@ -40,14 +40,14 @@ cd /Users/pppop/Desktop/Projects/pai
 gh repo create pai.ink --public --source=. --remote=origin --push
 ```
 
-You should now have `https://github.com/pppop00/pai.ink`. Confirm in the
+You should now have `https://github.com/pppop00/paiink`. Confirm in the
 browser.
 
 ## Step 3 — Connect 4EVERLAND
 
 1. Sign in: https://dashboard.4everland.org
 2. Click **Hosting** in the left sidebar → **New Project**.
-3. **Import Git Repository** → authorize GitHub → pick `pppop00/pai.ink`.
+3. **Import Git Repository** → authorize GitHub → pick `pppop00/paiink`.
 4. Build settings (4EVERLAND should auto-detect most of these from
    `site/package.json`; verify):
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """tools/unpublish.py — symmetric counterpart to publish.py.
 
-Removes an article from pai.ink. The article goes 404 on the live site after
-4EVERLAND rebuilds (~60-90 s after push), but the immutable IPFS historical
-snapshots (per-deploy `paink-<hash>-pppop00.ipfs.4everland.app` subdomains)
-remain — historical CIDs are append-only. If you genuinely need to scrub a
-file from IPFS, that's a different (harder) operation; see README.
+Removes an article from www.paiink.com. The article goes 404 on the live
+site after the CDN rebuilds (~60-90 s after push), but immutable IPFS
+historical snapshots remain reachable on per-deploy CIDs — historical
+content is append-only. If you genuinely need to scrub a file from IPFS,
+that's a different (harder) operation; see README.
 
 Usage:
     python3 tools/unpublish.py <zone>/<slug>

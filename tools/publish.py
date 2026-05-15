@@ -353,7 +353,7 @@ def main() -> int:
     print("\ngit:")
     git_commit_push(target_rel, args.title, push=not args.no_push)
 
-    print(f"\ndone. live in ~60-90s at:\n  https://paink-d19o.ipfs.4everland.app/{args.zone}/{slug}/")
+    print(f"\ndone. live in ~60-90s at:\n  https://www.paiink.com/{args.zone}/{slug}/")
     return 0
 
 
