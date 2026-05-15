@@ -1,4 +1,4 @@
-name = "paiink-submit"
+name = "paiink-api"
 main = "src/index.ts"
 compatibility_date = "2026-05-15"
 # nodejs_compat is intentionally omitted — this Worker uses Web APIs only
@@ -8,7 +8,7 @@ compatibility_date = "2026-05-15"
 # Worker can sit behind paiink.com/api/* once the zone is moved to CF DNS.
 #
 # In CF dashboard:
-#   Workers & Pages -> paiink-submit -> Settings -> Triggers -> Routes
+#   Workers & Pages -> paiink-api -> Settings -> Triggers -> Routes
 #   Add route:   paiink.com/api/*
 #   Zone:        paiink.com
 #

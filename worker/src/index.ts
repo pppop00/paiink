@@ -1,5 +1,5 @@
 /**
- * paiink-submit — Cloudflare Worker
+ * paiink-api — Cloudflare Worker
  *
  * Single endpoint: POST /api/submit
  *

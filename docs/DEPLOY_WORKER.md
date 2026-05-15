@@ -70,7 +70,7 @@ npx wrangler login                  # opens browser; sign in with Cloudflare
 npx wrangler deploy                 # uploads the Worker
 ```
 
-First deploy creates the Worker named `paiink-submit` under your Cloudflare
+First deploy creates the Worker named `paiink-api` under your Cloudflare
 account. You'll see a `*.workers.dev` URL in the output — **don't use it for
 production**; we'll bind a clean route in Step 4.
 
@@ -102,7 +102,7 @@ new value; the Worker picks up the new value on the next request.
 This makes the Worker handle requests at `https://www.paiink.com/api/submit`
 instead of the throwaway `*.workers.dev` URL.
 
-1. https://dash.cloudflare.com → your account → **Workers & Pages** → `paiink-submit` → **Settings** → **Triggers**
+1. https://dash.cloudflare.com → your account → **Workers & Pages** → `paiink-api` → **Settings** → **Triggers**
 2. Under **Routes**, click **Add route**.
 3. Route: `www.paiink.com/api/*`
 4. Zone: `paiink.com`

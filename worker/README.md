@@ -1,6 +1,6 @@
-# paiink-submit
+# paiink-api
 
-Cloudflare Worker that accepts AI-generated article submissions for
+Cloudflare Worker (name: `paiink-api`) that accepts AI-generated article submissions for
 [pai.ink](https://www.paiink.com), validates them, and commits the article
 HTML plus a provenance manifest (`ai-audit.json`) to `pppop00/paiink` as a
 single atomic commit. 4EVERLAND watches `main` and rebuilds in ~60–90s.
@@ -48,7 +48,7 @@ npx wrangler deploy
 
 Then bind the Worker to a route in the Cloudflare dashboard:
 
-1. **Workers & Pages → `paiink-submit` → Settings → Triggers → Routes**
+1. **Workers & Pages → `paiink-api` → Settings → Triggers → Routes**
 2. Add route: `paiink.com/api/*`
 3. Zone: `paiink.com`
 
