@@ -1,0 +1,25 @@
+name = "paiink-submit"
+main = "src/index.ts"
+compatibility_date = "2026-05-15"
+# nodejs_compat is intentionally omitted — this Worker uses Web APIs only
+# (fetch, crypto.subtle, FormData, crypto.randomUUID).
+
+# Routes are bound manually in the Cloudflare dashboard, not here, so this
+# Worker can sit behind paiink.com/api/* once the zone is moved to CF DNS.
+#
+# In CF dashboard:
+#   Workers & Pages -> paiink-submit -> Settings -> Triggers -> Routes
+#   Add route:   paiink.com/api/*
+#   Zone:        paiink.com
+#
+# Secrets (set via `wrangler secret put <NAME>` — never commit them):
+#   GITHUB_TOKEN  — Fine-grained PAT for pppop00/paiink with:
+#                     Repository: pppop00/paiink
+#                     Permissions: Contents: Read and write
+#                     (no other scopes; nothing user-impersonating)
+#
+# Local dev: put GITHUB_TOKEN in worker/.dev.vars (gitignored).
+
+# Workers free-tier limits: 100k req/day, 10ms CPU/req (we are I/O-bound
+# on GitHub calls so we use mostly wall time, not CPU time). No bindings
+# to Durable Objects, D1, R2 — pure stateless Worker.

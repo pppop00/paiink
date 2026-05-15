@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""tools/unpublish.py — symmetric counterpart to publish.py.
+"""tools/unpublish.py — admin retraction tool (站长撤稿).
 
-Removes an article from www.paiink.com. The article goes 404 on the live
-site after the CDN rebuilds (~60-90 s after push), but immutable IPFS
-historical snapshots remain reachable on per-deploy CIDs — historical
-content is append-only. If you genuinely need to scrub a file from IPFS,
-that's a different (harder) operation; see README.
+Publishing now happens via the web upload at https://www.paiink.com/submit/
+(CF Worker → GitHub commit → 4EVERLAND rebuild). This script is the only
+path to remove an already-published article. Per the agreement, author
+retraction requests go to report@paiink.com; the admin then runs this CLI.
+
+Removes the article from www.paiink.com — goes 404 after CDN rebuild
+(~60-90s after push). Immutable IPFS snapshots on per-deploy CIDs remain
+reachable; historical content is append-only.
 
 Usage:
     python3 tools/unpublish.py <zone>/<slug>

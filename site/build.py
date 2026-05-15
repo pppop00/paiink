@@ -7,11 +7,39 @@ zone listings, verify pages, and about page.
 
 Run from repo root:
     python site/build.py
+
+CSP / security headers strategy (2026-05-15):
+---------------------------------------------
+Production is served from IPFS (4EVERLAND-pinned) through BunnyCDN. A
+`curl -sI https://www.paiink.com/` shows BunnyCDN-BO1 returns content with
+NO Netlify-style `_headers` processing applied (no CSP, no XCTO, no XFO).
+Plain IPFS gateways also cannot honor a `_headers` file because content
+is content-addressed and served as-is. There is no documented evidence
+that 4EVERLAND post-processes a `_headers` file.
+
+Choice: Option B — inject `<meta http-equiv="Content-Security-Policy" ...>`
+into the `<head>` of every pai-chrome page (landing, zone indexes, verify,
+discuss, about, agreement, submit). The CSP is NOT injected into the
+self-contained article HTMLs copied verbatim from `content/<zone>/<slug>/`,
+both because (a) CLAUDE.md forbids modifying article HTML (would invalidate
+content_sha256) and (b) anamnesis articles load d3 / chart.js from
+jsdelivr / Google Fonts, which the project-wide CSP intentionally does not
+allow on pai-chrome surfaces.
+
+We still emit a `dist/_headers` file (Netlify/CF Pages syntax). It is a
+no-op on the current BunnyCDN+IPFS path but is wired up so that whenever an
+edge layer that honors it is added (BunnyCDN edge rules, CF Pages, Vercel,
+etc.), the security posture upgrades automatically. `frame-ancestors`
+cannot be set via <meta>, so the `_headers` file is the canonical place
+to declare anti-clickjacking; until the edge honors it, browsers fall back
+to the meta-tag policy (which omits frame-ancestors) plus `X-Frame-Options`
+will only apply once the edge honors the file.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import html
 import json
 import re
@@ -22,7 +50,41 @@ ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
 CONTENT = ROOT / "content"
 SCHEMAS = ROOT / "schemas"
+TEMPLATES = SITE / "templates"
 DIST = SITE / "dist"
+
+# Pinned hash of content/_meta/agreement-v1.md. The build asserts the
+# on-disk file matches this constant so a stray whitespace edit fails the
+# build loudly rather than silently drifting from manifests that reference
+# this hash.
+AGREEMENT_V1_SHA256 = "d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807"
+
+# Content-Security-Policy applied to pai-chrome pages via <meta>. Allows
+# inline scripts/styles (the discuss page has an inline tab toggle, the
+# global chrome has an inline cursor script, anamnesis articles have inline
+# Sankey/waterfall scripts but the CSP is not injected into article HTML).
+# `connect-src` includes api.github.com for the future submit form's PAT
+# validation call. `data:` covers chart libraries that embed images as URIs.
+CSP_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data:; "
+    "font-src 'self' data:; "
+    "connect-src 'self' https://api.github.com; "
+    "object-src 'none'; "
+    "base-uri 'self'; "
+    "frame-ancestors 'none'"
+)
+
+# Headers file content (Option-A artifact, no-op on current CDN path).
+HEADERS_FILE = f"""/*
+  Content-Security-Policy: {CSP_POLICY}
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+"""
 
 ZONES = [
     {"key": "finance", "name": "金融", "name_en": "Finance",
@@ -54,11 +116,18 @@ def _read_manifest(article_dir: Path) -> dict | None:
 def collect_articles() -> dict[str, list[dict]]:
     out: dict[str, list[dict]] = {z["key"]: [] for z in ZONES}
     for zone in ZONES:
+        # Defense in depth: never treat an underscore-prefixed top-level
+        # directory (e.g. `content/_meta/`) as a zone. ZONES is hardcoded
+        # but a future bug could append "_meta" — guard anyway.
+        if zone["key"].startswith("_"):
+            continue
         zone_dir = CONTENT / zone["key"]
         if not zone_dir.is_dir():
             continue
         for d in sorted(zone_dir.iterdir()):
             if not d.is_dir():
+                continue
+            if d.name.startswith("_") or d.name.startswith("."):
                 continue
             m = _read_manifest(d)
             if not m:
@@ -105,12 +174,15 @@ def _shell(*, title: str, body: str, base: str, active: str | None = None,
     def link(href: str, label: str, key: str) -> str:
         attr = ' aria-current="page"' if active == key else ""
         return f'<a href="{base}{href}"{attr}>{label}</a>'
+    csp_meta = f'<meta http-equiv="Content-Security-Policy" content="{_h(CSP_POLICY)}">'
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
+{csp_meta}
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>{_h(title)}</title>
 <link rel="icon" href="{base}favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="{base}style.css">
@@ -123,6 +195,7 @@ def _shell(*, title: str, body: str, base: str, active: str | None = None,
   <nav>
     {link("finance/", "金融", "finance")}
     {link("web3/", "Web3", "web3")}
+    {link("submit/", "投稿 / Submit", "submit")}
   </nav>
 </header>
 {body}
@@ -130,7 +203,10 @@ def _shell(*, title: str, body: str, base: str, active: str | None = None,
   <div><a href="{base or './'}">pai.ink</a> · AI 写作，公开可验证</div>
   <div>
     <a href="{base}about.html">关于</a> ·
-    <a href="https://github.com/pppop00/paiink">GitHub</a> ·
+    <a href="{base}submit/">投稿 / Submit</a> ·
+    <a href="{base}agreement/v1/">投稿协议 / Agreement</a> ·
+    <a href="https://github.com/pppop00/paiink">源代码 / Source</a> ·
+    <a href="https://github.com/pppop00/paiink/blob/main/LICENSE">Apache 2.0</a> ·
     <a href="{base}schemas/ai-audit/v1.json">Schema</a>
   </div>
 </footer>
@@ -463,6 +539,209 @@ def write_about() -> None:
     )
 
 
+# ---------- minimal markdown -> html ----------
+
+_INLINE_CODE_RE = re.compile(r"`([^`]+)`")
+_BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")
+_ITALIC_RE = re.compile(r"(?<![A-Za-z0-9_])_([^_\n]+)_(?![A-Za-z0-9_])")
+_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+
+
+def _md_inline(text: str) -> str:
+    """Apply inline markdown to one line of (already HTML-escaped) text."""
+    # Inline code first, with placeholder so its contents are not re-styled.
+    codes: list[str] = []
+
+    def _code_sub(m: re.Match) -> str:
+        codes.append(m.group(1))
+        return f"\x00CODE{len(codes) - 1}\x00"
+
+    text = _INLINE_CODE_RE.sub(_code_sub, text)
+    text = _BOLD_RE.sub(lambda m: f"<strong>{m.group(1)}</strong>", text)
+    text = _ITALIC_RE.sub(lambda m: f"<em>{m.group(1)}</em>", text)
+
+    def _link_sub(m: re.Match) -> str:
+        label, url = m.group(1), m.group(2)
+        # url is already escaped from the source escape pass; re-escape attr-safely
+        return f'<a href="{url}">{label}</a>'
+
+    text = _LINK_RE.sub(_link_sub, text)
+
+    # Restore codes (escape again so backtick contents stay literal).
+    def _restore(m: re.Match) -> str:
+        idx = int(m.group(1))
+        return f"<code>{codes[idx]}</code>"
+
+    text = re.sub(r"\x00CODE(\d+)\x00", _restore, text)
+    return text
+
+
+def md_to_html(md: str) -> str:
+    """Minimal markdown -> HTML for the agreement page.
+
+    Supports: # / ## / ### headings, paragraphs, blank lines, `-` bullet
+    lists, blockquotes (`>`), horizontal rules (`---`), **bold**, _italic_,
+    `code`, [text](url). No fenced code blocks, no nested lists, no tables.
+    """
+    # Escape everything first so any raw HTML in source is rendered as text;
+    # the parser only re-introduces tags it explicitly recognizes.
+    lines = md.splitlines()
+    out: list[str] = []
+    i = 0
+    in_list = False
+    in_blockquote = False
+
+    def close_list() -> None:
+        nonlocal in_list
+        if in_list:
+            out.append("</ul>")
+            in_list = False
+
+    def close_blockquote() -> None:
+        nonlocal in_blockquote
+        if in_blockquote:
+            out.append("</blockquote>")
+            in_blockquote = False
+
+    while i < len(lines):
+        raw = lines[i]
+        stripped = raw.strip()
+
+        if not stripped:
+            close_list()
+            close_blockquote()
+            i += 1
+            continue
+
+        if stripped == "---":
+            close_list()
+            close_blockquote()
+            out.append("<hr>")
+            i += 1
+            continue
+
+        # Headings
+        m_h = re.match(r"^(#{1,3})\s+(.*)$", stripped)
+        if m_h:
+            close_list()
+            close_blockquote()
+            level = len(m_h.group(1))
+            content = _md_inline(html.escape(m_h.group(2)))
+            out.append(f"<h{level}>{content}</h{level}>")
+            i += 1
+            continue
+
+        # Bullet list item
+        m_li = re.match(r"^-\s+(.*)$", stripped)
+        if m_li:
+            close_blockquote()
+            if not in_list:
+                out.append("<ul>")
+                in_list = True
+            content = _md_inline(html.escape(m_li.group(1)))
+            out.append(f"<li>{content}</li>")
+            i += 1
+            continue
+
+        # Blockquote
+        m_bq = re.match(r"^>\s?(.*)$", stripped)
+        if m_bq:
+            close_list()
+            if not in_blockquote:
+                out.append("<blockquote>")
+                in_blockquote = True
+            content = _md_inline(html.escape(m_bq.group(1)))
+            out.append(f"<p>{content}</p>")
+            i += 1
+            continue
+
+        # Paragraph: gather contiguous non-blank, non-special lines.
+        close_list()
+        close_blockquote()
+        para_lines = [stripped]
+        j = i + 1
+        while j < len(lines):
+            nxt = lines[j].strip()
+            if not nxt:
+                break
+            if re.match(r"^(#{1,3})\s+", nxt):
+                break
+            if re.match(r"^-\s+", nxt):
+                break
+            if re.match(r"^>\s?", nxt):
+                break
+            if nxt == "---":
+                break
+            para_lines.append(nxt)
+            j += 1
+        joined = " ".join(para_lines)
+        content = _md_inline(html.escape(joined))
+        out.append(f"<p>{content}</p>")
+        i = j
+
+    close_list()
+    close_blockquote()
+    return "\n".join(out)
+
+
+# ---------- agreement page ----------
+
+def write_agreement() -> None:
+    src = CONTENT / "_meta" / "agreement-v1.md"
+    if not src.is_file():
+        raise RuntimeError(f"agreement source missing: {src}")
+    raw = src.read_bytes()
+    actual = hashlib.sha256(raw).hexdigest()
+    if actual != AGREEMENT_V1_SHA256:
+        raise RuntimeError(
+            "agreement-v1.md hash drift!\n"
+            f"  expected: {AGREEMENT_V1_SHA256}\n"
+            f"  actual:   {actual}\n"
+            "Refusing to build. If you intentionally edited the agreement, "
+            "bump the version (agreement-v2.md) — do not modify v1."
+        )
+    md_text = raw.decode("utf-8")
+    body_md = md_to_html(md_text)
+    short = AGREEMENT_V1_SHA256[:8] + "…" + AGREEMENT_V1_SHA256[-3:]
+    notice = (
+        '<section class="agreement-hash">'
+        '<p class="eyebrow">协议哈希 / Agreement hash</p>'
+        f'<p>本协议哈希: <code title="{AGREEMENT_V1_SHA256}">{_h(short)}</code>'
+        ' — 文件: <code>content/_meta/agreement-v1.md</code>. '
+        '任何人可下载源文件并本地复算验证。</p>'
+        '<p class="agreement-verify">'
+        '<code>shasum -a 256 content/_meta/agreement-v1.md</code>'
+        '</p>'
+        '</section>'
+    )
+    body = f'{notice}\n<article class="prose agreement-body">\n{body_md}\n</article>'
+    out = DIST / "agreement" / "v1"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "index.html").write_text(
+        _shell(title="投稿协议 v1 — pai.ink", body=body, base="../../")
+    )
+
+
+# ---------- submit page ----------
+
+def write_submit() -> None:
+    tpl = TEMPLATES / "submit.html"
+    if tpl.is_file():
+        body = tpl.read_text()
+    else:
+        body = (
+            '<section class="page-head">'
+            '<p class="eyebrow">SUBMIT · 投稿</p>'
+            '<h1>投稿</h1></section>\n'
+            '<!-- TODO: form goes here -->'
+        )
+    out = DIST / "submit"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "index.html").write_text(
+        _shell(title="投稿 / Submit — pai.ink", body=body, base="../", active="submit")
+    )
+
+
 def copy_articles(articles: dict[str, list[dict]]) -> None:
     for zone_key, items in articles.items():
         for a in items:
@@ -497,6 +776,12 @@ def main() -> None:
             write_verify_page(zone["key"], a["slug"], a["manifest"])
             write_discuss_page(zone["key"], a["slug"], a["manifest"])
     write_about()
+    write_agreement()
+    write_submit()
+
+    # Forward-compat security headers. No-op on the current BunnyCDN+IPFS
+    # path; would activate automatically on any Netlify/CF Pages-style edge.
+    (DIST / "_headers").write_text(HEADERS_FILE)
 
     print(f"built {DIST.relative_to(ROOT)}/")
 

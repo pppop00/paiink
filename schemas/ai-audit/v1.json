@@ -50,6 +50,16 @@
           "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
           "description": "BCP-47 language tag, e.g. zh-CN, en-US."
         },
+        "license": {
+          "type": "string",
+          "enum": ["CC-BY-NC-4.0", "CC-BY-4.0", "CC0-1.0", "ARR"],
+          "description": "License the author declares for this article. ARR = All Rights Reserved. Optional for legacy manifests; required at web-upload time."
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp set by the server when the article is published via the web-upload flow."
+        },
         "content_sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$",
@@ -114,13 +124,17 @@
 
     "generation": {
       "type": "object",
-      "required": ["model", "started_at", "finished_at"],
+      "required": ["model"],
       "additionalProperties": false,
       "properties": {
         "model": {
           "type": "string",
           "description": "Model ID that produced the article.",
           "examples": ["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+        },
+        "api_request_id": {
+          "type": "string",
+          "description": "Optional Anthropic API request_id (e.g. req_01ABcdef...) for the run that produced this article."
         },
         "harness": {
           "type": "string",
@@ -198,6 +212,29 @@
       }
     },
 
+    "agreement": {
+      "type": "object",
+      "description": "Optional record that the author accepted the versioned publishing agreement. Required by the web-upload flow; absent in legacy CLI/PR manifests.",
+      "required": ["version", "sha256", "accepted_at"],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Agreement version tag, e.g. \"v1\". The verifier pins the canonical sha256 for each known version."
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of the agreement markdown file the author accepted (e.g. content/_meta/agreement-v1.md)."
+        },
+        "accepted_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp at which the author clicked accept."
+        }
+      }
+    },
+
     "signature": {
       "type": "object",
       "description": "Author's signature over the canonical JSON form of every other field in this manifest (RFC 8785 JCS).",
@@ -239,7 +276,9 @@
               "skill_md_hash_match",
               "signature_valid",
               "github_oauth_match",
-              "wallet_sig_valid"
+              "wallet_sig_valid",
+              "agreement_hash_pinned",
+              "license_valid"
             ]
           }
         },

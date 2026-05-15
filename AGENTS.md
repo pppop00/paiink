@@ -37,19 +37,21 @@ Treat this rule as load-bearing.
 ## Build + serve
 
 ```bash
-# Build
+# Build the static site
 python3 site/build.py            # outputs site/dist/
 
 # Local preview
 cd site/dist && python3 -m http.server 7345
 # then open http://127.0.0.1:7345/
 
-# Verify a manifest
+# Verify a manifest offline (no GitHub calls)
 python3 tools/verify_audit.py --offline content/finance/<slug>/ai-audit.json
 
-# Publish a new article (the canonical flow — use this, not raw emit_audit)
-python3 tools/publish.py <skill-output-dir> --zone finance --title "..."
+# Admin retract an article (only path that mutates the live site from CLI)
+python3 tools/unpublish.py finance/<slug> --reason "..."
 ```
+
+Publishing is no longer a CLI flow — it's web-only. See "Publishing flow" below.
 
 ## Where things live
 
@@ -81,18 +83,37 @@ Use it when:
 Always pass `--reason` for the audit trail — it goes into the commit
 message and stays in git history forever.
 
-## How `tools/publish.py` works
+## Publishing flow (web-only)
 
-This is the canonical publishing path. It composes:
+Articles are published exclusively via the web form at `/submit/` (or the
+equivalent JSON POST for AI agents). The flow:
 
-1. `copy_assets` — finds the article HTML (anamnesis pattern aware) and copies it + sibling `cards/` into `content/<zone>/<slug>/`.
-2. `build_manifest` — hashes everything, fills schema fields, auto-detects `skill.repo_url` + `skill.repo_commit` from the skill's `.git`.
-3. `run_sign` — shells out to `tools/sign_audit.py sign` with `~/.pai/ed25519.key` if present.
-4. `run_verify` — shells out to `tools/verify_audit.py --offline`.
-5. `git_commit_push` — commits + pushes. 4EVERLAND auto-rebuilds.
+```
+Browser form OR agent POST  →  CF Worker (worker/src/index.ts)
+                                  │  validates payload, PAT, account age,
+                                  │  rate limit, skill repo public, agreement
+                                  │  hash, slug collision (auto-versions +v2/+v3)
+                                  │
+                                  ▼
+                              GitHub Git Data API
+                                  │  single commit with index.html + ai-audit.json
+                                  │  service identity: paiink-submit <submit@paiink.com>
+                                  ▼
+                              main on pppop00/paiink
+                                  │
+                                  ▼
+                              4EVERLAND auto-rebuild (~60-90s)  →  www.paiink.com/<zone>/<slug>/
+```
 
-When extending it: prefer adding flags over forking the flow. The user
-relies on the one-command UX.
+Endpoint: `POST /api/submit` accepts both `multipart/form-data` (browser) and
+`application/json` (agent). Identity comes from `Authorization: Bearer <PAT>`
+verified against `GET /user`; `author.github` is **server-derived**, never
+user-claimed. The agreement v1 hash (`d89b0a30…807`) is pinned in the Worker
+and baked into every manifest. Worker source: `worker/src/index.ts`.
+
+When extending the Worker: keep the existing gates (PAT verify, account ≥ 30
+days, ≤ 5 articles/day/author global, skill repo public, skill commit exists,
+slug auto-version) intact unless the user explicitly says to relax one.
 
 ## Provenance is non-negotiable
 
@@ -122,7 +143,7 @@ Three rules that override convenience:
   alias that follows whichever CDN deployment is currently "production".
   Don't link the underlying per-deploy CID subdomains or the
   `*.4everland.app` host from anywhere in user-visible output (site pages,
-  publish.py logs, README) — those are immutable historical snapshots,
+  Worker responses, README) — those are immutable historical snapshots,
   fine as fallbacks for archival access but not the brand surface.
 - **Force-push to main rewrites the production pointer** on the next CDN
   rebuild. Existing per-deploy CIDs are not affected (still reachable via
@@ -133,15 +154,23 @@ Three rules that override convenience:
   `start`/`end` in `waterfallData` (chart renders empty), Sankey
   conservation violations (orphan nodes, imbalanced flows), and
   `"基于初稿评分"` template prefix leaking into the Porter narrative.
-  Before publishing an anamnesis output, eyeball the income waterfall
+  Before submitting an anamnesis output, eyeball the income waterfall
   (Section 三), Sankey (Section 四), and Porter (Section 五).
-  `grep -c "基于初稿评分" path/to/report.html` should return `0`.
+  `grep -c "基于初稿评分" path/to/report.html` should return `0`. The Worker
+  does NOT do these content checks — the agreement makes content quality
+  the author's responsibility.
 
 ## Tasks the user might ask about that I should know
 
 - "Add a new zone" → edit `ZONES` in `site/build.py` AND the `category`
-  enum in `schemas/ai-audit/v1.json`. Bump the schema if changing the
-  set in a backwards-incompatible way.
+  enum in `schemas/ai-audit/v1.json` AND the `ZONES` const in
+  `worker/src/index.ts`. All three must stay in sync. Bump the schema if
+  changing the set in a backwards-incompatible way.
+- "Update the agreement" → write `content/_meta/agreement-v2.md`. DO NOT
+  edit `agreement-v1.md` (its hash is pinned in `tools/verify_audit.py`,
+  `site/build.py`, and `worker/src/index.ts`). Update those three pinned
+  constants to add v2 hash. v1 articles continue to validate against v1
+  forever.
 - "Set up analytics" → user prefers privacy-friendly cookieless tools.
   Cloudflare Web Analytics or Plausible. Avoid Google Analytics. Avoid
   Google-Fonts-style external dependencies that fail in CN.

@@ -8,154 +8,122 @@ more to come.
 
 - Static site, IPFS-pinned, served via 4EVERLAND's global CDN
 - Works in both Mainland China and the US without ICP filing
-- Submission via GitHub PR (or direct push for repo owners); validation via GitHub Actions
+- **Submission via web form** at [/submit/](https://www.paiink.com/submit/) — no fork, no PR, no CLI
 - Open standard: `ai-audit/v1` JSON Schema (see `schemas/ai-audit/`)
+- Author-attested AI provenance (≥ 90% AI-generated) per the [投稿协议 v1](https://www.paiink.com/agreement/v1/)
 
 ## Live
 
 - Production: [www.paiink.com](https://www.paiink.com)
-- Source: https://github.com/pppop00/paiink
+- Source: https://github.com/pppop00/paiink (Apache 2.0)
 - Schema: [`/schemas/ai-audit/v1.json`](./schemas/ai-audit/v1.json) (CC0)
+- Agreement v1: [`content/_meta/agreement-v1.md`](./content/_meta/agreement-v1.md), SHA256 `d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807`
 
 ## Repo layout
 
 ```
-pai/
+paiink/
 ├── README.md
-├── CLAUDE.md                    # Conventions for AI assistants working in this repo
-├── schemas/ai-audit/            # The provenance manifest standard
-│   ├── v1.json                  # JSON Schema (Draft 2020-12)
-│   ├── SPEC.md                  # Human-readable spec
-│   └── examples/                # Sample manifests
+├── CLAUDE.md / AGENTS.md             # Conventions for AI assistants working in this repo
+├── LICENSE                           # Apache 2.0
+├── schemas/ai-audit/
+│   ├── v1.json                       # JSON Schema (Draft 2020-12)
+│   ├── SPEC.md                       # Human-readable spec
+│   └── examples/
 ├── tools/
-│   ├── publish.py               # One-shot publisher (see below) ← start here
-│   ├── verify_audit.py          # Validator (CI + CLI)
-│   ├── sign_audit.py            # ed25519 keygen / sign
-│   ├── emit_audit.py            # Manifest scaffolder (publish.py wraps this)
-│   ├── probe_latency.py         # TTFB probe (CN/US reachability)
-│   └── _jcs.py                  # RFC 8785 JSON canonicalization
+│   ├── verify_audit.py               # Validator (CI + CLI)
+│   ├── sign_audit.py                 # ed25519 keygen / sign (optional, manifests work unsigned)
+│   ├── emit_audit.py                 # Manifest scaffolder (low-level)
+│   ├── unpublish.py                  # Admin retraction CLI
+│   ├── probe_latency.py              # TTFB probe (CN/US reachability)
+│   └── _jcs.py                       # RFC 8785 JSON canonicalization
+├── worker/                           # Cloudflare Worker — the /api/submit endpoint
+│   ├── src/index.ts
+│   ├── wrangler.toml
+│   └── README.md                     # Worker deploy steps
 ├── content/
-│   ├── finance/<slug>/          # index.html + ai-audit.json + assets/
+│   ├── _meta/agreement-v1.md         # Hash-pinned agreement (do NOT edit)
+│   ├── finance/<slug>/               # index.html + ai-audit.json
 │   └── web3/<slug>/
-├── site/                        # Static site builder + CSS
-│   ├── build.py                 # placeholder builder (Astro arrives in step A)
-│   ├── style.css
-│   └── favicon.svg
+├── site/
+│   ├── build.py                      # Static site builder (stdlib Python only)
+│   ├── templates/submit.html         # Submit form (rendered into /submit/)
+│   └── style.css
 ├── docs/
-│   ├── DEPLOY.md                # 4EVERLAND + domain playbook
-│   └── HOSTING.md               # Why 4EVERLAND, fallback plans
-└── .github/workflows/verify.yml # PR-gated manifest validation
+│   ├── DEPLOY.md                     # 4EVERLAND + domain playbook
+│   ├── DEPLOY_WORKER.md              # Cloudflare Worker deploy steps (admin only)
+│   └── HOSTING.md                    # Why 4EVERLAND, fallback plans
+└── .github/workflows/verify.yml      # PR-gated manifest validation (legacy path, optional)
 ```
 
-## Publishing — the one-command path
+## Submitting an article
 
-If your AI skill output sits in some directory and you want it on pai.ink:
+The canonical path is the web form at [www.paiink.com/submit/](https://www.paiink.com/submit/).
+
+Required fields:
+
+| Field | Notes |
+|---|---|
+| Title | 1–200 chars |
+| Zone | `finance` or `web3` |
+| Language | `zh-CN` or `en` |
+| License | CC BY-NC 4.0 (default), CC BY 4.0, CC0, or All Rights Reserved |
+| HTML file | ≤ 5 MB, single file |
+| GitHub PAT | Must have **no scopes** (we only call `GET /user` to verify identity) |
+| Display name | How you appear as author |
+| Skill name | Free text |
+| Skill repo URL | Must be public GitHub |
+| Skill repo commit | 40-hex SHA |
+| Model | e.g. `claude-opus-4-7` |
+| Harness | e.g. `claude-code-cli` |
+| Agreement checkbox | Required — see [Agreement v1](https://www.paiink.com/agreement/v1/) |
+
+Optional: **API request ID** (e.g. Anthropic `req_01...`) — recommended for stronger audit trail.
+
+Gating (server-side):
+
+- GitHub account must exist ≥ 30 days
+- Max 5 articles per author per UTC day (across all zones)
+- Skill repo URL must return 200 OK; commit must exist
+- Same-slug collisions auto-version as `<slug>-v2`, `<slug>-v3`, …
+
+### For AI agents — same endpoint, JSON shape
+
+Agents POST the same endpoint with `application/json`:
 
 ```bash
-python3 tools/publish.py /path/to/skill/output/<run-dir> \
-    --zone finance \
-    --title "苹果公司 — 权益研究"
+curl -X POST https://www.paiink.com/api/submit \
+  -H "Authorization: Bearer $GITHUB_PAT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Your Title",
+    "zone": "finance",
+    "language": "zh-CN",
+    "license": "CC-BY-NC-4.0",
+    "display_name": "Your Name",
+    "skill_name": "Your Skill",
+    "skill_repo_url": "https://github.com/you/your-skill",
+    "skill_repo_commit": "<40-hex>",
+    "model": "claude-opus-4-7",
+    "harness": "your-harness",
+    "api_request_id": "req_01...",
+    "agreement_accepted": true,
+    "html": "<base64 of HTML bytes>"
+  }'
 ```
 
-That's it. The script:
+Response `200`:
 
-1. **Finds the article HTML** (knows the anamnesis pattern `research/*_Research_CN.html`; falls back to any `*.html` in the dir).
-2. **Derives a clean slug** from the dir name (`Apple_2026-06-15_abc12345` → `apple-2026-06-15`).
-3. **Copies HTML and assets** (`cards/*.png` etc.) into `content/<zone>/<slug>/`.
-4. **Auto-detects the skill repo URL and commit hash** from the skill's `.git` (no need to pass them).
-5. **Generates `ai-audit.json`** with hashes for the article + every asset.
-6. **Signs with `~/.pai/ed25519.key`** if you have one (skip with `--no-sign`).
-7. **Runs `verify_audit.py --offline`** as a sanity check.
-8. **`git add` + commit + push.**
-9. Prints the live URL. **4EVERLAND auto-rebuilds in ~60–90 s.**
-
-### Optional flags
-
-| Flag | Default | Notes |
-|---|---|---|
-| `--subtitle` | — | Dek shown under the title on cards |
-| `--tag X` | — | Repeatable, ≤12 tags |
-| `--language` | `zh-CN` | BCP-47 tag |
-| `--slug` | auto | Override the derived slug |
-| `--note` | — | Free text for `reproducibility_note` (declare manual edits, retries) |
-| `--skill-name` | `Anamnesis Research` | Override for non-anamnesis skills |
-| `--skill-repo` | auto | Defaults to `$PAI_SKILL_REPO` or git-detected |
-| `--skill-commit` | auto | Defaults to `$PAI_SKILL_COMMIT` or git-detected |
-| `--model` | `claude-opus-4-7` | Model ID |
-| `--github` | `$PAI_GITHUB` → `pppop00` | Author GitHub login |
-| `--display-name` | `$PAI_DISPLAY_NAME` → `Zelong` | Pen name on the article card |
-| `--no-sign` | off | Skip signature step |
-| `--no-commit` | off | Stop after writing the manifest |
-| `--no-push` | off | Commit but don't push |
-| `--force` | off | Overwrite existing slug |
-| `--dry-run` | off | Print plan without writing |
-
-### One-time setup (~2 min)
-
-```bash
-# Author key (used to sign every future manifest)
-python3 tools/sign_audit.py keygen --out ~/.pai/ed25519.key
-
-# Optional: persist defaults to your shell rc
-export PAI_GITHUB=pppop00
-export PAI_DISPLAY_NAME=Zelong
-
-# Optional: a shell alias for less typing
-alias pai-publish='python3 ~/Desktop/Projects/pai/tools/publish.py'
+```json
+{
+  "slug": "your-title-2026-05-15",
+  "url": "https://www.paiink.com/finance/your-title-2026-05-15/",
+  "live_in_seconds_estimate": 90,
+  "commit_sha": "..."
+}
 ```
 
-The printed public key goes in a public gist as `pai-public-key.txt` so verifiers can pin it to your GitHub identity.
-
-## Unpublishing
-
-Symmetric to publish:
-
-```bash
-python3 tools/unpublish.py finance/<slug>
-# or
-python3 tools/unpublish.py --zone finance --slug <slug> --reason "broken chart"
-```
-
-What it does:
-
-1. Removes `content/<zone>/<slug>/`.
-2. Commits with `unpublish: <title>` + your reason.
-3. Pushes. 4EVERLAND rebuilds in ~60–90s and the live URL goes 404.
-
-**Caveat:** historical IPFS CIDs are immutable. A reader who has an old
-deployment-pinned CID can still reach the unpublished article through public
-IPFS gateways. If you need to scrub a file from IPFS entirely (because it's
-defamatory, contains PII, etc.), that's a different operation — ask the
-hosting provider to unpin the CID, and accept that public IPFS gateways may
-have already cached it.
-
-Flags: `--dry-run`, `--no-push`, `--no-commit`, `--yes` (skip confirmation).
-
-## Requirements for your skill repo
-
-For a manifest to pass CI, the **skill itself must be on GitHub publicly**:
-
-- `skill.repo_url` must resolve unauthenticated (200 OK).
-- `skill.repo_commit` must exist on a branch of that repo.
-- If you supply `skill.skill_md_sha256`, the entry file at that commit must hash to the same value.
-
-If your skill is still private, the article will still publish (4EVERLAND doesn't gate on CI), but the `/verify/<id>` page will show "未携带 CI 校验戳" instead of the verified badge.
-
-## Submission flow (for outside contributors)
-
-If you don't have write access to this repo:
-
-1. Fork `pppop00/paiink`.
-2. Run `tools/publish.py` against your skill output (it commits to your fork).
-3. Open a PR back to `main`.
-4. CI runs `verify_audit.py` with `--pr-author <your-github>`.
-5. Green = squash merge → 4EVERLAND rebuilds.
-
-The PR will be rejected if:
-- The manifest fails schema validation.
-- The content hash doesn't match `index.html`.
-- The skill repo isn't public or the commit doesn't exist.
-- Your GitHub login doesn't match `author.github` in the manifest.
+Errors return `{error, detail}` with HTTP status: `400` validation, `401` PAT invalid, `403` account too new / agreement not accepted, `409` slug exhausted, `413` HTML too big, `429` rate limit, `503` GitHub upstream.
 
 ## Verifying an article (reader flow)
 
@@ -164,30 +132,68 @@ Every article links to `/verify/<id>` which shows:
 - Status (✓ verified / ⚠ not verified)
 - Article title + zone + content hash
 - Skill repo URL + commit (linkable)
-- Model / harness / timestamps
-- Author + signature presence
+- Model / harness / API request ID (if disclosed)
+- Author + agreement version & hash
 - Collapsible full manifest JSON
 
-You can also download `ai-audit.json` from each article and run the validator yourself:
+You can also download `ai-audit.json` from each article and run the validator locally:
 
 ```bash
 python3 tools/verify_audit.py /path/to/ai-audit.json
+# or offline (skips network checks):
+python3 tools/verify_audit.py --offline /path/to/ai-audit.json
 ```
+
+Check the agreement hash yourself:
+
+```bash
+shasum -a 256 content/_meta/agreement-v1.md
+# must be: d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807
+```
+
+## Retraction (admin only)
+
+Authors request retraction by emailing **report@paiink.com** from the GitHub-public email tied to their `author.github`. The admin (repo owner) runs:
+
+```bash
+python3 tools/unpublish.py finance/<slug> --reason "<text>"
+```
+
+The live URL goes 404 after the CDN rebuilds (~60–90s). **Immutable IPFS snapshots on per-deploy CIDs remain reachable** — this is a property of IPFS, not a bug. Don't promise true deletion.
+
+## Build + preview locally
+
+```bash
+python3 site/build.py            # outputs site/dist/
+cd site/dist && python3 -m http.server 7345
+# open http://127.0.0.1:7345/
+```
+
+Build is stdlib-only Python — no npm, no Astro, no fancy deps. The submit form is plain HTML + vanilla JS for CSP simplicity.
 
 ## Standards
 
-The provenance schema is open and CC0. Re-use it. The goal isn't a pai-only badge — it's that "AI-written" becomes a verifiable claim across the whole web.
+The provenance schema is open and CC0. Re-use it freely. The goal isn't a pai-only badge — it's that "AI-written" becomes a verifiable claim across the whole web.
 
 - Schema: [`schemas/ai-audit/v1.json`](./schemas/ai-audit/v1.json)
 - Human spec: [`schemas/ai-audit/SPEC.md`](./schemas/ai-audit/SPEC.md)
+- Agreement v1: [`content/_meta/agreement-v1.md`](./content/_meta/agreement-v1.md)
 
 ## Status
 
-- [x] Provenance schema `ai-audit/v1` defined
-- [x] Validator (Python)
-- [x] One-shot publisher
+- [x] Provenance schema `ai-audit/v1`
+- [x] Python validator (`tools/verify_audit.py`)
+- [x] Apache 2.0 license
 - [x] 4EVERLAND deployment live (CN + US verified)
-- [ ] Custom domain `pai.ink` bound
+- [x] Custom domain `paiink.com` bound
+- [x] Investor protocol v1 (agreement.md hash-pinned)
+- [x] Web upload endpoint (`worker/` — Cloudflare Worker)
+- [x] Submit form (`/submit/`)
+- [ ] First external submission (waiting on you 🎤)
 - [ ] Astro site scaffold (replaces `site/build.py`)
-- [ ] Web Analytics (Cloudflare WA or Plausible)
+- [ ] Cloudflare Web Analytics
 - [ ] On-chain anchor for Web3 zone
+
+## License
+
+Apache License 2.0 — see [LICENSE](./LICENSE). Articles in `content/` carry their own per-article license declared in each manifest (default CC BY-NC 4.0).

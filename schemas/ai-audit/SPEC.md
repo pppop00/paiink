@@ -31,7 +31,7 @@ content/<category>/<slug>/
 
 `content_path` in the manifest is relative to `ai-audit.json`'s directory.
 
-## 3. The eight sections
+## 3. The nine sections
 
 ### 3.1 `schema` + `schema_version`
 Locks readers to v1. Future versions ship as `v2.json` etc.; pai will
@@ -47,6 +47,8 @@ support old versions for at least 12 months after a new one lands.
 | `category` | yes | `finance` or `web3` today. New zones added by PR'ing `config/categories.yaml`. |
 | `tags` | no | Free-form, ≤12. |
 | `language` | no | BCP-47 (`zh-CN`, `en-US`, etc.). |
+| `license` | no | One of `CC-BY-NC-4.0`, `CC-BY-4.0`, `CC0-1.0`, `ARR`. Optional for legacy CLI/PR manifests; the web-upload flow requires the author to pick one before publish. `ARR` = All Rights Reserved. |
+| `published_at` | no | ISO 8601 UTC timestamp. **Server-set** by the web-upload flow when the article is published; CLI/PR manifests can leave it absent. |
 | `content_sha256` | yes | SHA-256 of the article file **verbatim, byte-for-byte**. No normalization. |
 | `content_path` | yes | Relative path, typically `index.html`. |
 | `assets` | no | Each asset hashed. Use this for screenshots, CSV data files, etc. |
@@ -78,6 +80,7 @@ no one can read the recipe, the manifest is theatre.
 | Field | Required | Notes |
 |---|---|---|
 | `model` | yes | Model ID, e.g. `claude-opus-4-7`. |
+| `api_request_id` | no | The Anthropic API `request_id` (e.g. `req_01ABcdef...`) returned by the run that produced this article. Useful for post-hoc support / forensic lookups; never required because not every harness surfaces it. |
 | `harness` | no | `claude-code-cli`, `claude-agent-sdk`, `anthropic-api`, etc. |
 | `started_at` / `finished_at` | yes | ISO 8601. |
 | `prompt_template_sha256` | no | SHA-256 of the system/agent prompt used. Useful if the skill renders prompts dynamically and you want to pin which template version was active. |
@@ -95,7 +98,29 @@ no one can read the recipe, the manifest is theatre.
 | `wallet` | no | EVM address or `.eth` ENS. Required for Web3-zone if the author wants on-chain timestamping. |
 | `wallet_sig` | no | EIP-191 signature by `wallet` over the canonical manifest. |
 
-### 3.6 `signature` (optional but recommended)
+### 3.6 `agreement` (web-upload flow only)
+
+When an author submits via the web-upload flow they must accept a versioned
+publishing agreement. The accepted state is recorded here so a verifier can
+prove the article was published under a specific set of terms.
+
+| Field | Required (when block present) | Notes |
+|---|---|---|
+| `version` | yes | Agreement version tag, e.g. `v1`. |
+| `sha256` | yes | SHA-256 of the agreement markdown file the author saw. For `v1`, the canonical agreement lives at `content/_meta/agreement-v1.md`. |
+| `accepted_at` | yes | ISO 8601 UTC timestamp at which the author clicked accept. |
+
+The verifier (`tools/verify_audit.py`) **pins the canonical sha256 for each
+known agreement version directly in code** (`PINNED_AGREEMENT_HASHES`). The
+check `agreement_hash_pinned` fails if the manifest's `agreement.sha256`
+doesn't match the pinned value for `agreement.version`, or if the version is
+unknown. This prevents a malicious server from silently swapping the
+agreement text after the author accepted it.
+
+Legacy CLI/PR manifests (no `agreement` block) are still accepted; the
+verifier emits a non-blocking warning instead.
+
+### 3.7 `signature` (optional but recommended)
 
 An ed25519 signature by the author over the **canonical** form of the
 manifest (RFC 8785 JSON Canonicalization Scheme), with the `signature`
@@ -109,7 +134,7 @@ field itself removed before canonicalization. The verifier:
 The author registers `public_key` against their GitHub identity once (via a
 gist or a `.pai` repo) so the same key works across submissions.
 
-### 3.7 `verifier` (CI fills this in)
+### 3.8 `verifier` (CI fills this in)
 
 Authors must leave this empty. The CI bot adds it after a green run and
 commits the updated manifest as part of the merge. The `verifier` block is
@@ -156,6 +181,8 @@ article.**
 | `signature_valid` | If `signature` present, JCS-canonicalize and verify. |
 | `github_oauth_match` | The PR opener equals `author.github`. (Skipped for CLI usage.) |
 | `wallet_sig_valid` | If `wallet_sig` present, recover the EVM signer and compare. |
+| `agreement_hash_pinned` | If an `agreement` block is present, `agreement.sha256` must equal the verifier's pinned hash for `agreement.version`. Unknown versions fail. No block = non-blocking warn (legacy manifest). |
+| `license_valid` | If `article.license` is present, it must be one of the allowed enum values (`CC-BY-NC-4.0`, `CC-BY-4.0`, `CC0-1.0`, `ARR`). Absent = non-blocking warn (legacy manifest). |
 
 ## 6. Threat model — what this catches and what it doesn't
 

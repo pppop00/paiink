@@ -16,6 +16,13 @@ Designed to be:
     - the single source of truth for what "valid" means
     - usable both in GitHub Actions and as a local CLI
     - boring and dependency-light
+
+Pinned constants:
+    PINNED_AGREEMENT_HASHES maps each known publishing-agreement version to
+    the canonical SHA-256 of its markdown file. The `agreement_hash_pinned`
+    check rejects any manifest whose `agreement.sha256` doesn't match the
+    pinned value for its `agreement.version`. Add a new entry here when
+    rolling a v2 agreement; never edit an existing one.
 """
 
 from __future__ import annotations
@@ -47,8 +54,22 @@ except ImportError as e:  # pragma: no cover
 from _jcs import canonicalize
 
 
-VERIFIER_VERSION = "1.0.0"
+VERIFIER_VERSION = "1.1.0"
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "ai-audit" / "v1.json"
+
+# Pinned SHA-256 hashes of each published agreement version. The canonical
+# v1 markdown lives at content/_meta/agreement-v1.md. Append-only: never
+# mutate an existing entry, even to fix a typo — ship a new version instead.
+AGREEMENT_V1_SHA256 = "d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807"
+PINNED_AGREEMENT_HASHES: dict[str, str] = {
+    "v1": AGREEMENT_V1_SHA256,
+}
+
+# Allowed values for article.license. Kept in sync with the enum in
+# schemas/ai-audit/v1.json. ARR = All Rights Reserved.
+ALLOWED_LICENSES: frozenset[str] = frozenset(
+    {"CC-BY-NC-4.0", "CC-BY-4.0", "CC0-1.0", "ARR"}
+)
 
 
 # ---------- result tracking ----------
@@ -310,6 +331,53 @@ def check_github_oauth_match(manifest: dict, result: Result, *, pr_author: str |
         result.fail("github_oauth_match", f"PR opened by {pr_author!r}, manifest claims {claimed!r}")
 
 
+def check_agreement_hash_pinned(manifest: dict, result: Result) -> None:
+    """Verify the agreement block (if present) matches the pinned hash for
+    its version. Legacy manifests with no agreement block produce a warning."""
+    agreement = manifest.get("agreement")
+    if not agreement:
+        result.warn("agreement_hash_pinned", "no agreement (legacy manifest)")
+        return
+    version = agreement.get("version")
+    claimed_hash = (agreement.get("sha256") or "").lower()
+    if not version:
+        result.fail("agreement_hash_pinned", "agreement.version missing")
+        return
+    pinned = PINNED_AGREEMENT_HASHES.get(version)
+    if pinned is None:
+        result.fail(
+            "agreement_hash_pinned",
+            f"unknown agreement version {version!r}; "
+            f"known versions: {sorted(PINNED_AGREEMENT_HASHES)}",
+        )
+        return
+    if claimed_hash != pinned:
+        result.fail(
+            "agreement_hash_pinned",
+            f"agreement.sha256 for {version!r} does not match pinned hash: "
+            f"expected {pinned}, got {claimed_hash or '<empty>'}",
+        )
+        return
+    result.ok("agreement_hash_pinned")
+
+
+def check_license_valid(manifest: dict, result: Result) -> None:
+    """Verify article.license (if present) is in the allowed enum.
+    Absent license yields a warning to keep legacy manifests passing."""
+    license_value = manifest.get("article", {}).get("license")
+    if license_value is None:
+        result.warn("license_valid", "no license declared (legacy manifest)")
+        return
+    if license_value not in ALLOWED_LICENSES:
+        result.fail(
+            "license_valid",
+            f"license {license_value!r} not in allowed set: "
+            f"{sorted(ALLOWED_LICENSES)}",
+        )
+        return
+    result.ok("license_valid")
+
+
 # ---------- driver ----------
 
 def verify(manifest_path: Path, *, pr_author: str | None, offline: bool) -> Result:
@@ -333,6 +401,8 @@ def verify(manifest_path: Path, *, pr_author: str | None, offline: bool) -> Resu
     check_skill_md_hash(manifest, result, offline=offline)
     check_signature(manifest, result)
     check_github_oauth_match(manifest, result, pr_author=pr_author)
+    check_agreement_hash_pinned(manifest, result)
+    check_license_valid(manifest, result)
     return result
 
 
@@ -348,7 +418,13 @@ def emit_verifier_block(manifest_path: Path, result: Result) -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Validate an ai-audit/v1 manifest.")
+    ap = argparse.ArgumentParser(
+        description=(
+            "Validate an ai-audit/v1 manifest. Runs schema, content-hash, "
+            "asset-hash, skill-repo, skill-commit, skill-md-hash, signature, "
+            "github-oauth, agreement-hash-pinned, and license checks."
+        )
+    )
     ap.add_argument("manifest", type=Path, help="Path to ai-audit.json")
     ap.add_argument("--pr-author", help="GitHub login of the PR opener (CI sets this)")
     ap.add_argument("--offline", action="store_true", help="Skip all network checks")
