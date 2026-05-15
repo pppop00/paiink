@@ -1,7 +1,8 @@
 /**
  * paiink-api — Cloudflare Worker
  *
- * Single endpoint: POST /api/submit
+ * Endpoint: POST /submit (when hosted at api.paiink.com)
+ *           POST /api/submit (when hosted at workers.dev or behind same-origin reverse-proxy)
  *
  * Accepts AI-generated article submissions (HTML + provenance metadata),
  * validates them, then commits index.html + ai-audit.json to the
@@ -773,7 +774,9 @@ async function handleSubmit(req: Request, env: Env): Promise<Response> {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    if (url.pathname !== "/api/submit") {
+    // Accept both /submit (when served at api.paiink.com via Custom Domain)
+    // and /api/submit (when served at workers.dev or any same-origin reverse-proxy).
+    if (url.pathname !== "/submit" && url.pathname !== "/api/submit") {
       return jsonResponse(404, { error: "not_found", detail: "no such endpoint" });
     }
     if (req.method === "OPTIONS") {
@@ -789,7 +792,7 @@ export default {
         return errorResponse(e);
       }
       // Genuine internal error — only place we log, so Workers tail surfaces it.
-      console.error("unhandled error in /api/submit:", e);
+      console.error("unhandled error in submit endpoint:", e);
       return jsonResponse(500, {
         error: "internal",
         detail: "unexpected error; see Worker logs",

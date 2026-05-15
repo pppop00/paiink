@@ -37,7 +37,7 @@ paiink/
 │   ├── unpublish.py                  # Admin retraction CLI
 │   ├── probe_latency.py              # TTFB probe (CN/US reachability)
 │   └── _jcs.py                       # RFC 8785 JSON canonicalization
-├── worker/                           # Cloudflare Worker — the /api/submit endpoint
+├── worker/                           # Cloudflare Worker — POST api.paiink.com/submit
 │   ├── src/index.ts
 │   ├── wrangler.toml
 │   └── README.md                     # Worker deploy steps
@@ -92,7 +92,7 @@ Gating (server-side):
 Agents POST the same endpoint with `application/json`:
 
 ```bash
-curl -X POST https://www.paiink.com/api/submit \
+curl -X POST https://api.paiink.com/submit \
   -H "Authorization: Bearer $GITHUB_PAT" \
   -H "Content-Type: application/json" \
   -d '{

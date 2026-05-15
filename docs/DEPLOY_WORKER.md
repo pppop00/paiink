@@ -1,8 +1,8 @@
-# DEPLOY_WORKER.md — getting the /api/submit endpoint live
+# DEPLOY_WORKER.md — getting the submit endpoint live
 
 This is the **admin-only** deploy guide for the Cloudflare Worker at
-`worker/` that powers https://www.paiink.com/api/submit. Authors don't need
-to read this; they just visit `/submit/`.
+`worker/` that powers https://api.paiink.com/submit. Authors don't need
+to read this; they just visit https://www.paiink.com/submit/.
 
 Total time: **~30 minutes** the first time.
 
@@ -12,7 +12,7 @@ Total time: **~30 minutes** the first time.
 
 ```
 Browser form OR agent POST
-   │  POST /api/submit
+   │  POST /submit  (via api.paiink.com Custom Domain)
    ▼
 Cloudflare Worker (worker/src/index.ts)
    │  ① verify submitter PAT via GET /user
@@ -97,21 +97,26 @@ new value; the Worker picks up the new value on the next request.
 
 ---
 
-## Step 4 — Bind the route `paiink.com/api/*`
+## Step 4 — Add Custom Domain `api.paiink.com`
 
-This makes the Worker handle requests at `https://www.paiink.com/api/submit`
-instead of the throwaway `*.workers.dev` URL.
+`www.paiink.com` is grey-cloud DNS-only → BunnyCDN (kept that way for CN
+reach via 4EVERLAND). Cloudflare Workers Routes only intercept traffic that
+flows through Cloudflare, so we **cannot** bind the Worker to
+`www.paiink.com/api/*`. Use a separate subdomain instead:
 
-1. https://dash.cloudflare.com → your account → **Workers & Pages** → `paiink-api` → **Settings** → **Triggers**
-2. Under **Routes**, click **Add route**.
-3. Route: `www.paiink.com/api/*`
-4. Zone: `paiink.com`
-5. Save.
+1. https://dash.cloudflare.com → **Workers & Pages** → `paiink-api` → **Settings** → **Triggers**
+2. Under **Custom Domains**, click **Add Custom Domain**.
+3. Domain: `api.paiink.com`
+4. Add.
 
-(If you also want bare-domain support: add a second route `paiink.com/api/*`.)
+Cloudflare auto-creates the DNS record for `api.paiink.com` and provisions a
+Let's Encrypt certificate. Takes ~30 seconds to go live.
 
-The static site (4EVERLAND IPFS) keeps serving everything **else**;
-Cloudflare's edge intercepts `/api/*` and runs the Worker.
+After this:
+- `https://api.paiink.com/submit` → Worker
+- `https://www.paiink.com/` → BunnyCDN (unchanged, still fast in CN)
+- CORS already allows `https://www.paiink.com` as origin, so the submit
+  form at `www.paiink.com/submit/` can POST cross-origin to `api.paiink.com`.
 
 ---
 

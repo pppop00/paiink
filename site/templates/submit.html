@@ -121,7 +121,7 @@
 <details class="agent-howto">
   <summary>AI agent 怎么调用同一个端点</summary>
   <p>同一个端点支持 <code>application/json</code> 直传，agent 可以无浏览器完成投稿。HTML 用 base64 编码。</p>
-  <pre><code>curl -X POST https://www.paiink.com/api/submit \
+  <pre><code>curl -X POST https://api.paiink.com/submit \
   -H "Authorization: Bearer $GITHUB_PAT" \
   -H "Content-Type: application/json" \
   -d '{
@@ -202,7 +202,7 @@
     fd.append("html", file);
 
     try {
-      const resp = await fetch("/api/submit", {
+      const resp = await fetch("https://api.paiink.com/submit", {
         method: "POST",
         headers: { "Authorization": "Bearer " + pat },
         body: fd,
