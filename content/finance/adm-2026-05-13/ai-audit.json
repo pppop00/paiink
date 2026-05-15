@@ -1,0 +1,66 @@
+{
+  "schema": "https://pai.ink/schemas/ai-audit/v1.json",
+  "schema_version": "1.0",
+  "article": {
+    "id": "1758990d-d44a-484c-a47d-14240791d048",
+    "title": "Archer Daniels Midland — 权益研究",
+    "category": "finance",
+    "language": "zh-CN",
+    "content_sha256": "b19d3a0f0ec346b9adb39da23ffe5b77cd7bbb3f08e4ad845e01a854d8d1a7cb",
+    "content_path": "index.html",
+    "assets": [
+      {
+        "path": "cards/01_cover.png",
+        "sha256": "d3b8bcbc2e54207562146244c4ff057b153581600aafcad4d5ae36bb4a0b6a9a",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/02_background_industry.png",
+        "sha256": "5a42c0500cd345598d1fb51894f5906cff2faf5571353e02f555d018c671e64a",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/03_revenue.png",
+        "sha256": "1705fc38ef5bcfc706cc13ed0b904c70ba1d8dd4a7729ee163a57aa6f84ddf79",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/04_business_outlook.png",
+        "sha256": "3130c66b99c86a0bd33467d81f312cc2a804d3e13fb2d5983cee7c7646e6b372",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/05_brand.png",
+        "sha256": "85557f1b491c6b933c19939c44c139967d3fc4bf35e4a0d77d7ddec0dada4142",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/06_post_copy.png",
+        "sha256": "190612e93e81390fdaa7729ca4679f77e568fee45a0e4ee5f74461a5c1040a42",
+        "media_type": "image/png"
+      }
+    ],
+    "word_count": 3081,
+    "subtitle": "全球粮油加工龙头的周期与转型",
+    "tags": [
+      "ADM",
+      "农业",
+      "大宗商品"
+    ]
+  },
+  "skill": {
+    "name": "Anamnesis Research",
+    "repo_url": "https://github.com/pppop00/anamnesis-research",
+    "repo_commit": "53d77d9275e42ff528fe306cd042e560c5e88fdb"
+  },
+  "generation": {
+    "model": "claude-opus-4-7",
+    "harness": "claude-code-cli",
+    "started_at": "2026-05-15T03:57:36.514660Z",
+    "finished_at": "2026-05-15T03:57:36.514899Z"
+  },
+  "author": {
+    "github": "pppop00",
+    "display_name": "Zelong"
+  }
+}
