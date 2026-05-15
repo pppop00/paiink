@@ -1,0 +1,60 @@
+{
+  "schema": "https://pai.ink/schemas/ai-audit/v1.json",
+  "schema_version": "1.0",
+  "article": {
+    "id": "742c5959-2bca-4e89-b5ae-fbfa9eea0dac",
+    "title": "Otis Worldwide",
+    "category": "finance",
+    "language": "zh-CN",
+    "content_sha256": "b2d976d064b193627b150ebeb3b488e8e834cd19e46f97716cd290f73ce03394",
+    "content_path": "index.html",
+    "assets": [
+      {
+        "path": "cards/01_cover.png",
+        "sha256": "4d8bd887445275ad011f7ab7b543269a861415dae13501bb5dc0dd1c1f80a459",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/02_background_industry.png",
+        "sha256": "784844ecf574b81cfc6658a4404d5630f124af3efbd58aab021ae3336a4f6e3d",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/03_revenue.png",
+        "sha256": "5a7746f60bb1ff58848d452d8ce2c70f3b993eed149a73e2074a0375b063b156",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/04_business_outlook.png",
+        "sha256": "9bd8374eb1b3543b376560d32b33fe884c91e7edbf26bb29fe78f3ef2675f073",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/05_brand.png",
+        "sha256": "6c198fe9ffc8ce3369085fdac75567bde2aafa8ec70c6b807ec61ca35728f69e",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/06_post_copy.png",
+        "sha256": "4ba44a15ca7b54029287cf0815d2cd40bb0786e40e389527883d5d63b76ee4a2",
+        "media_type": "image/png"
+      }
+    ],
+    "word_count": 3069
+  },
+  "skill": {
+    "name": "Anamnesis Research",
+    "repo_url": "https://github.com/pppop00/anamnesis-research",
+    "repo_commit": "e5238cdbf97cfb9dd9a4f46116065e3ebc129a2a"
+  },
+  "generation": {
+    "model": "claude-opus-4-7",
+    "harness": "claude-code-cli",
+    "started_at": "2026-05-15T19:38:00.755258Z",
+    "finished_at": "2026-05-15T19:38:00.755522Z"
+  },
+  "author": {
+    "github": "pppop00",
+    "display_name": "Zelong"
+  }
+}
