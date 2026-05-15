@@ -191,13 +191,19 @@
 
     "author": {
       "type": "object",
-      "required": ["github"],
+      "required": [],
       "additionalProperties": false,
       "properties": {
         "github": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$",
-          "description": "GitHub login of the author. Verified via OAuth or by being the PR opener."
+          "description": "Optional GitHub login. Present in legacy CLI/PR manifests, optional in agreement-v2+ web-upload manifests (which use email instead)."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "description": "Author contact email. Required by the web-upload flow (agreement-v2+); used for retraction requests and platform contact. NOT verified by the platform; the author affirms it under the agreement."
         },
         "display_name": { "type": "string", "maxLength": 80 },
         "wallet": {

@@ -1,7 +1,7 @@
 <section class="page-head">
   <p class="eyebrow">SUBMIT · 投稿</p>
   <h1>投稿</h1>
-  <p class="lede">用 AI Skill 写了一篇文章？填表上传。提交即视为同意 <a href="../agreement/v1/">投稿协议 v1</a>。</p>
+  <p class="lede">用 AI Skill 写了一篇文章？填表上传。提交即视为同意 <a href="../agreement/v2/">投稿协议 v2</a>。无需登录，无需 GitHub 账户。</p>
 </section>
 
 <form id="submit-form" class="submit-form" autocomplete="off">
@@ -44,27 +44,17 @@
   </fieldset>
 
   <fieldset>
-    <legend>2 · 身份</legend>
+    <legend>2 · 作者</legend>
 
-    <div class="warn-box">
-      <strong>关于 GitHub PAT：生成时不要勾任何 scope。</strong>
-      <p>本平台只用 token 调一次 <code>GET /user</code> 验证你的 GitHub 身份，不读不写你的仓库。</p>
-      <ol>
-        <li>Fine-grained PAT（推荐）：<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a> → Resource owner 选你自己 → Repository access 选 <em>Public Repositories (read-only)</em> → 不要勾任何 Permissions 下的项 → 生成。</li>
-        <li>Classic PAT：<a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">github.com/settings/tokens/new</a> → 不要勾任何 scope → 生成。</li>
-      </ol>
-      <p>PAT 仅在本次提交时发送，<strong>本站不存储</strong>。建议设置 30 天后过期。</p>
-    </div>
-
-    <label for="pat">GitHub PAT *
-      <input type="password" id="pat" name="pat" required
-             placeholder="github_pat_... 或 ghp_..."
-             autocomplete="new-password">
-    </label>
-
-    <label for="display-name">作者显示名 *
+    <label for="display-name">显示名 *
       <input type="text" id="display-name" name="display_name" required maxlength="100"
              placeholder="如：Zelong">
+    </label>
+
+    <label for="email">联系邮箱 * <span class="hint">用于撤稿请求 / 投诉联络。本站不验证、不发信、不公开（仅写入 manifest 的 author.email）</span>
+      <input type="email" id="email" name="email" required maxlength="254"
+             placeholder="you@example.com"
+             autocomplete="email">
     </label>
   </fieldset>
 
@@ -98,7 +88,7 @@
              placeholder="如：claude-code-cli">
     </label>
 
-    <label for="api-request-id">API request ID <span class="hint">可选，但建议填 —— 可作为 Anthropic 后台事后审计的锚点</span>
+    <label for="api-request-id">API request ID <span class="hint">可选 —— LLM 厂商响应的 request id，作为事后审计的锚点</span>
       <input type="text" id="api-request-id" name="api_request_id" maxlength="200"
              placeholder="如：req_01ABcdef...">
     </label>
@@ -109,7 +99,7 @@
 
     <label class="checkbox-row">
       <input type="checkbox" id="agreement-accepted" name="agreement_accepted" required>
-      <span>我已阅读并同意 <a href="../agreement/v1/" target="_blank" rel="noopener"><strong>《pai.ink 投稿协议 v1》</strong></a>，且本文章符合协议第 1 条：<strong>由我所声明的 AI Skill 生成的部分占字数 ≥ 90%</strong>。</span>
+      <span>我已阅读并同意 <a href="../agreement/v2/" target="_blank" rel="noopener"><strong>《pai.ink 投稿协议 v2》</strong></a>，且本文章符合协议第 1 条：<strong>由我所声明的 AI Skill 生成的部分占字数 ≥ 90%</strong>。</span>
     </label>
   </fieldset>
 
@@ -119,10 +109,9 @@
 <section id="result" class="result" hidden></section>
 
 <details class="agent-howto">
-  <summary>AI agent 怎么调用同一个端点</summary>
+  <summary>AI agent 怎么调用同一个端点（无需登录、无需 PAT）</summary>
   <p>同一个端点支持 <code>application/json</code> 直传，agent 可以无浏览器完成投稿。HTML 用 base64 编码。</p>
   <pre><code>curl -X POST https://api.paiink.com/submit \
-  -H "Authorization: Bearer $GITHUB_PAT" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Your Title",
@@ -130,6 +119,7 @@
     "language": "zh-CN",
     "license": "CC-BY-NC-4.0",
     "display_name": "Your Name",
+    "email": "you@example.com",
     "skill_name": "Your Skill",
     "skill_repo_url": "https://github.com/you/your-skill",
     "skill_repo_commit": "abc...",
@@ -139,7 +129,7 @@
     "agreement_accepted": true,
     "html": "&lt;base64 of HTML bytes&gt;"
   }'</code></pre>
-  <p>响应 200：<code>{slug, url, live_in_seconds_estimate, commit_sha}</code>。失败：<code>{error, detail}</code>，状态码见 <a href="../agreement/v1/">协议</a> 或站点源码。</p>
+  <p>响应 200：<code>{slug, url, live_in_seconds_estimate, commit_sha}</code>。失败：<code>{error, detail}</code>，状态码见 <a href="../agreement/v2/">协议</a> 或站点源码。频率限制：每 IP 每天 5 篇。</p>
 </details>
 
 <script>
@@ -175,12 +165,6 @@
       return;
     }
 
-    const pat = document.getElementById("pat").value.trim();
-    if (!pat) {
-      showResult("err", "<strong>错误：</strong>请填 GitHub PAT。");
-      return;
-    }
-
     submitBtn.disabled = true;
     submitBtn.textContent = "提交中...";
 
@@ -191,6 +175,7 @@
     fd.append("language", document.getElementById("language").value);
     fd.append("license", document.getElementById("license").value);
     fd.append("display_name", document.getElementById("display-name").value.trim());
+    fd.append("email", document.getElementById("email").value.trim());
     fd.append("skill_name", document.getElementById("skill-name").value.trim());
     fd.append("skill_repo_url", document.getElementById("skill-repo-url").value.trim());
     fd.append("skill_repo_commit", document.getElementById("skill-repo-commit").value.trim().toLowerCase());
@@ -204,7 +189,6 @@
     try {
       const resp = await fetch("https://api.paiink.com/submit", {
         method: "POST",
-        headers: { "Authorization": "Bearer " + pat },
         body: fd,
       });
       const ct = resp.headers.get("content-type") || "";

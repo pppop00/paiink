@@ -467,8 +467,16 @@ footer.site a:hover { color: var(--fg); border-bottom-color: var(--fg); }
 /* ============================================================
    Agreement page
    ============================================================ */
+.agreement-archived {
+  margin: 32px 0 0;
+  padding: 14px 18px;
+  background: rgba(184, 132, 42, 0.08);
+  border-left: 3px solid #b8842a;
+  font-size: 14px;
+}
+.agreement-archived p { margin: 0; }
 .agreement-hash {
-  margin: 48px 0 8px;
+  margin: 32px 0 8px;
   padding: 20px 22px;
   background: var(--bg-elev);
   border: 1px solid var(--hairline);

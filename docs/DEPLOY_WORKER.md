@@ -8,26 +8,27 @@ Total time: **~30 minutes** the first time.
 
 ---
 
-## What this Worker does
+## What this Worker does (agreement v2+)
 
 ```
 Browser form OR agent POST
    │  POST /submit  (via api.paiink.com Custom Domain)
    ▼
 Cloudflare Worker (worker/src/index.ts)
-   │  ① verify submitter PAT via GET /user
-   │  ② check account age ≥ 30 days
+   │  ① validate payload (email syntax, agreement checkbox, etc.)
+   │  ② IP rate limit via KV (5/IP/day, fail-soft)
    │  ③ check skill repo public + commit exists
-   │  ④ rate-limit: ≤ 5 articles/day/author (global)
-   │  ⑤ auto-version slug (+v2/+v3)
-   │  ⑥ build manifest (with pinned agreement v1 hash)
-   │  ⑦ atomic commit via GitHub Git Data API
+   │  ④ auto-version slug (+v2/+v3)
+   │  ⑤ build manifest with pinned agreement v2 hash + author.email
+   │  ⑥ atomic commit via GitHub Git Data API
    │     (committer: paiink-submit <submit@paiink.com>)
    ▼
 GitHub main on pppop00/paiink  →  4EVERLAND rebuild  →  live URL
 ```
 
-Worker secret needed: `GITHUB_TOKEN` (Fine-grained PAT, Contents R+W on `pppop00/paiink` only).
+Worker resources needed:
+- **Secret** `GITHUB_TOKEN`: Fine-grained PAT (Contents R+W on `pppop00/paiink` only) — Worker uses this to commit. **Not** related to submitters; submitters supply no credential.
+- **KV namespace** bound as `KV_RATE_LIMIT`: backs per-IP daily rate limit. Optional but recommended.
 
 ---
 
@@ -41,8 +42,9 @@ Worker secret needed: `GITHUB_TOKEN` (Fine-grained PAT, Contents R+W on `pppop00
 
 ## Step 1 — Generate the Worker's GitHub PAT
 
-This is **distinct** from the PAT that submitters use. The Worker needs write
-access to commit articles; submitters only need read on `/user`.
+The Worker needs write access to commit articles on behalf of submitters.
+**Submitters supply no credential at all** (agreement v2+); the Worker
+authenticates as itself.
 
 1. Go to https://github.com/settings/personal-access-tokens/new
 2. Fill in:
@@ -97,7 +99,26 @@ new value; the Worker picks up the new value on the next request.
 
 ---
 
-## Step 4 — Add Custom Domain `api.paiink.com`
+## Step 4a — Create KV namespace for rate limiting (optional but recommended)
+
+1. https://dash.cloudflare.com → **Workers & Pages** → **KV** (left sidebar)
+2. **Create namespace**. Name: `paiink-rl` (any name; only the id matters).
+3. Copy the namespace **ID** (a 32-hex string).
+4. In `worker/wrangler.toml`, uncomment and fill in:
+   ```toml
+   [[kv_namespaces]]
+   binding = "KV_RATE_LIMIT"
+   id = "<paste-id-here>"
+   ```
+5. `cd worker && npx wrangler deploy`.
+
+If you skip this, the Worker still runs — rate limiting becomes a no-op
+(fail-soft). You can also stack edge-level limits via Cloudflare WAF
+rate-limiting rules on `api.paiink.com/*`.
+
+---
+
+## Step 4b — Add Custom Domain `api.paiink.com`
 
 `www.paiink.com` is grey-cloud DNS-only → BunnyCDN (kept that way for CN
 reach via 4EVERLAND). Cloudflare Workers Routes only intercept traffic that
@@ -136,13 +157,13 @@ npx wrangler dev
 Smoke test:
 
 ```bash
-# This will REJECT with 401 — no Authorization header
-curl -X POST http://localhost:8787/api/submit \
+# This will REJECT with 400 — missing required fields
+curl -X POST http://localhost:8787/submit \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
 
-You should see `{"error":"auth","detail":"missing Authorization: Bearer header"}`. That's the Worker live. ✓
+You should see something like `{"error":"validation","detail":"title must be a string"}`. That's the Worker live. ✓
 
 To actually submit an article in dev: use a test PAT you generated yourself
 (not your production token) and point the Worker at a fork or test repo by
@@ -155,11 +176,10 @@ editing `REPO_OWNER`/`REPO_NAME` constants temporarily in `src/index.ts`.
 After Steps 1–4 are done:
 
 1. Visit https://www.paiink.com/submit/
-2. Generate a personal PAT with **no scopes** (see Submit page warning box)
-3. Pick a small test HTML, fill the form, accept the agreement, submit
-4. Expect: 200 response with slug + URL
-5. Wait ~90s, visit the URL — article should be live
-6. Retract immediately if it was a test: `python3 tools/unpublish.py finance/<slug> --reason "test submission"`
+2. Pick a small test HTML, fill the form (display name + email + skill metadata + agreement checkbox), submit
+3. Expect: 200 response with slug + URL
+4. Wait ~90s, visit the URL — article should be live
+5. Retract immediately if it was a test: `python3 tools/unpublish.py finance/<slug> --reason "test submission"`
 
 ---
 
@@ -167,11 +187,12 @@ After Steps 1–4 are done:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `503 GitHub temporarily unavailable` | Real GitHub outage or rate limit hit | Wait, retry. Check https://www.githubstatus.com |
-| `401 invalid PAT` on every submit | Worker's `GITHUB_TOKEN` not set | Re-run `wrangler secret put GITHUB_TOKEN` |
-| Submits succeed but article never appears | Route binding wrong | Check Step 4. Worker logs: `npx wrangler tail` |
+| `503 GitHub temporarily unavailable` | Real GitHub outage or token rate limit | Wait, retry. Check https://www.githubstatus.com |
+| `500 internal` on every submit + logs mention GitHub 401 | Worker's `GITHUB_TOKEN` not set / expired | Re-run `wrangler secret put GITHUB_TOKEN` |
+| Submits succeed but article never appears | Custom Domain not bound | Check Step 4b. Worker logs: `npx wrangler tail` |
 | Worker logs say "ref update conflict" | Two submitters raced | Resubmit; Worker uses `force:false` deliberately |
 | Browser CORS error | CORS origin mismatch | Check Worker `Access-Control-Allow-Origin` is `https://www.paiink.com` (it is in source) |
+| Rate limit triggering on first submit | KV namespace populated from a prior test, or wrong key format | `wrangler kv:key list --binding KV_RATE_LIMIT` to inspect; delete stale keys |
 
 ---
 

@@ -58,6 +58,8 @@ DIST = SITE / "dist"
 # build loudly rather than silently drifting from manifests that reference
 # this hash.
 AGREEMENT_V1_SHA256 = "d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807"
+AGREEMENT_V2_SHA256 = "ec4066647aad291af1e7e88387b3dbfea8c63fce13da3e5ba64f11299793a19d"
+AGREEMENT_CURRENT_VERSION = "v2"
 
 # Content-Security-Policy applied to pai-chrome pages via <meta>. Allows
 # inline scripts/styles (the submit form has inline JS, the global chrome
@@ -204,7 +206,7 @@ def _shell(*, title: str, body: str, base: str, active: str | None = None,
   <div>
     <a href="{base}about.html">关于</a> ·
     <a href="{base}submit/">投稿 / Submit</a> ·
-    <a href="{base}agreement/v1/">投稿协议 / Agreement</a> ·
+    <a href="{base}agreement/v2/">投稿协议 / Agreement</a> ·
     <a href="https://github.com/pppop00/paiink">源代码 / Source</a> ·
     <a href="https://github.com/pppop00/paiink/blob/main/LICENSE">Apache 2.0</a> ·
     <a href="{base}schemas/ai-audit/v1.json">Schema</a>
@@ -588,40 +590,54 @@ def md_to_html(md: str) -> str:
 
 # ---------- agreement page ----------
 
-def write_agreement() -> None:
-    src = CONTENT / "_meta" / "agreement-v1.md"
+def _write_agreement_version(version: str, expected_hash: str, *, is_archived: bool) -> None:
+    src = CONTENT / "_meta" / f"agreement-{version}.md"
     if not src.is_file():
         raise RuntimeError(f"agreement source missing: {src}")
     raw = src.read_bytes()
     actual = hashlib.sha256(raw).hexdigest()
-    if actual != AGREEMENT_V1_SHA256:
+    if actual != expected_hash:
         raise RuntimeError(
-            "agreement-v1.md hash drift!\n"
-            f"  expected: {AGREEMENT_V1_SHA256}\n"
+            f"agreement-{version}.md hash drift!\n"
+            f"  expected: {expected_hash}\n"
             f"  actual:   {actual}\n"
             "Refusing to build. If you intentionally edited the agreement, "
-            "bump the version (agreement-v2.md) — do not modify v1."
+            "ship a new version — do not modify a published version."
         )
     md_text = raw.decode("utf-8")
     body_md = md_to_html(md_text)
-    short = AGREEMENT_V1_SHA256[:8] + "…" + AGREEMENT_V1_SHA256[-3:]
+    short = expected_hash[:8] + "…" + expected_hash[-3:]
+    archived_banner = ""
+    if is_archived:
+        archived_banner = (
+            '<section class="agreement-archived">'
+            f'<p><strong>归档版本。</strong>新投稿适用 <a href="../{AGREEMENT_CURRENT_VERSION}/">最新版本</a>。'
+            '已发布文章的 manifest 永久绑定其上传时的协议版本。</p>'
+            '</section>'
+        )
     notice = (
         '<section class="agreement-hash">'
         '<p class="eyebrow">协议哈希 / Agreement hash</p>'
-        f'<p>本协议哈希: <code title="{AGREEMENT_V1_SHA256}">{_h(short)}</code>'
-        ' — 文件: <code>content/_meta/agreement-v1.md</code>. '
+        f'<p>本协议哈希: <code title="{expected_hash}">{_h(short)}</code>'
+        f' — 文件: <code>content/_meta/agreement-{version}.md</code>. '
         '任何人可下载源文件并本地复算验证。</p>'
         '<p class="agreement-verify">'
-        '<code>shasum -a 256 content/_meta/agreement-v1.md</code>'
+        f'<code>shasum -a 256 content/_meta/agreement-{version}.md</code>'
         '</p>'
         '</section>'
     )
-    body = f'{notice}\n<article class="prose agreement-body">\n{body_md}\n</article>'
-    out = DIST / "agreement" / "v1"
+    body = f'{archived_banner}{notice}\n<article class="prose agreement-body">\n{body_md}\n</article>'
+    out = DIST / "agreement" / version
     out.mkdir(parents=True, exist_ok=True)
     (out / "index.html").write_text(
-        _shell(title="投稿协议 v1 — pai.ink", body=body, base="../../")
+        _shell(title=f"投稿协议 {version} — pai.ink", body=body, base="../../")
     )
+
+
+def write_agreement() -> None:
+    # v1 is archived (its retraction flow assumed GitHub identity); v2 is current.
+    _write_agreement_version("v1", AGREEMENT_V1_SHA256, is_archived=True)
+    _write_agreement_version("v2", AGREEMENT_V2_SHA256, is_archived=False)
 
 
 # ---------- submit page ----------

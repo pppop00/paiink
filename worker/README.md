@@ -5,33 +5,34 @@ Cloudflare Worker (name: `paiink-api`) that accepts AI-generated article submiss
 HTML plus a provenance manifest (`ai-audit.json`) to `pppop00/paiink` as a
 single atomic commit. 4EVERLAND watches `main` and rebuilds in ~60–90s.
 
-## What it does
+## What it does (agreement v2+)
 
-`POST /api/submit` accepts either `application/json` (for AI agents) or
-`multipart/form-data` (for browser forms). Both yield the same internal
-payload. The Worker:
+`POST /submit` (at `api.paiink.com`) or `POST /api/submit` (at workers.dev)
+accepts either `application/json` (for AI agents) or `multipart/form-data`
+(for browser forms). Both yield the same internal payload.
 
-1. Verifies the submitter's GitHub PAT (passed as `Authorization: Bearer <pat>`),
-   extracts their login, and rejects accounts younger than 30 days.
-2. Verifies the declared skill repo is public on GitHub and the declared
+**No GitHub login. No PAT.** Submitter identity = declared `display_name`
+and `email`. The Worker:
+
+1. Validates the payload shape (required fields, email syntax,
+   `agreement_accepted == true`, HTML ≤ 5 MB).
+2. Enforces a soft per-IP daily rate limit via KV (5/IP/day, fail-soft
+   if the KV binding is missing).
+3. Verifies the declared skill repo is public on GitHub and the declared
    commit hash exists in it.
-3. Picks an available slug `<kebab-title>-<YYYY-MM-DD-UTC>`, auto-incrementing
+4. Picks an available slug `<kebab-title>-<YYYY-MM-DD-UTC>`, auto-incrementing
    `-v2`, `-v3`, … if collisions occur.
-4. Enforces a soft rate limit of 5 articles/day per author.
-5. Builds the v1 `ai-audit.json` manifest with server-derived fields:
-   `author.github` from the verified PAT, `content_sha256` of the HTML,
-   `published_at` from server time, and the pinned agreement v1 SHA256.
+5. Builds the `ai-audit.json` manifest with server-set fields:
+   `content_sha256` of the HTML, `published_at` from server time, the
+   pinned agreement v2 SHA256, a UUID v4 article id, and the declared
+   `author.email` + `author.display_name`.
 6. Commits both files to `main` via the Git Data API (blob → tree → commit
    → ref), so the user sees a single commit, not two.
 
-The Worker uses two GitHub identities:
-
-| Identity                              | Token                | Used for                                                    |
-| ------------------------------------- | -------------------- | ----------------------------------------------------------- |
-| `paiink-submit <submit@paiink.com>`   | `GITHUB_TOKEN` secret | Writing the commit (service identity).                      |
-| The submitter's GitHub login          | per-request PAT      | Verifying the submitter actually owns the login they claim. |
-
-The per-request PAT is **never** used to write and **never** stored.
+The committer identity is `paiink-submit <submit@paiink.com>` (service
+identity, distinct from any human contributor). The `GITHUB_TOKEN` secret
+is the Worker's PAT for writing commits — it is **not** related to any
+submitter; submitters do not supply a PAT.
 
 ## Deploy
 
@@ -46,14 +47,23 @@ npx wrangler secret put GITHUB_TOKEN
 npx wrangler deploy
 ```
 
-Then bind the Worker to a route in the Cloudflare dashboard:
+Then bind the Worker to a **Custom Domain** in the Cloudflare dashboard
+(www.paiink.com is grey-cloud DNS-only for CN reach, so Routes don't work):
 
-1. **Workers & Pages → `paiink-api` → Settings → Triggers → Routes**
-2. Add route: `paiink.com/api/*`
-3. Zone: `paiink.com`
+1. **Workers & Pages → `paiink-api` → Settings → Domains & Routes**
+2. Add Custom Domain: `api.paiink.com`
 
-This step is manual because the route depends on which domain you're using
-(e.g. fallbacks like `paipress.xyz` if `pai.ink` was unavailable).
+CF auto-creates DNS + cert (~30s).
+
+For IP rate limiting, also bind a KV namespace:
+
+1. **Workers & Pages → KV → Create namespace** (name e.g. `paiink-rl`)
+2. Copy the namespace id into `wrangler.toml`'s `kv_namespaces` block
+3. `npx wrangler deploy`
+
+If the KV binding is absent, the Worker still runs — rate limiting is
+fail-soft. You can also stack Cloudflare WAF rate-limiting rules at the
+edge for hard limits.
 
 ## Local dev
 
@@ -70,8 +80,7 @@ npm run tail              # tail production logs
 Smoke test:
 
 ```bash
-curl -X POST http://localhost:8787/api/submit \
-  -H "Authorization: Bearer ghp_yourPAT" \
+curl -X POST http://localhost:8787/submit \
   -H "Content-Type: application/json" \
   -d @sample-payload.json
 ```
@@ -88,9 +97,10 @@ curl -X POST http://localhost:8787/api/submit \
 ```
 
 All errors return `{"error": "<short>", "detail": "<longer>"}` with the
-appropriate status (`400` validation, `401` PAT, `403` agreement or account
-age, `409` slug exhausted or branch moved, `413` HTML too big, `429` rate
-limit, `503` GitHub upstream issue, `500` internal).
+appropriate status (`400` validation, `403` agreement not accepted,
+`409` slug exhausted or branch moved, `413` HTML too big, `415`
+unsupported Content-Type, `429` IP rate limit, `503` GitHub upstream
+issue, `500` internal).
 
 ## Files
 

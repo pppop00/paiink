@@ -9,16 +9,19 @@
  * pppop00/paiink repo via the GitHub Git Data API as a single atomic commit.
  * 4EVERLAND watches `main` and rebuilds in ~60-90s.
  *
- * The Worker uses two GitHub identities by design:
+ * Auth model (agreement v2+, no GitHub):
  *   - GITHUB_TOKEN (Worker secret): pushes the commit. Service identity.
  *     Commit author/committer: paiink-submit <submit@paiink.com>.
- *   - Submitter's PAT (per-request, Authorization header): used ONLY to
- *     verify the submitter actually owns the GitHub login they claim.
- *     Never stored. Never used to write.
+ *   - Submitter identity = display_name + email (declared, NOT verified).
+ *     The platform never sends email to the address; accuracy is the
+ *     author's responsibility per agreement v2 §6.
+ *   - Sybil resistance: KV-backed IP rate limit (IP_DAILY_LIMIT/day,
+ *     fail-soft if KV is unbound). Stack with Cloudflare WAF rules for
+ *     defense in depth.
  */
 
-const AGREEMENT_V1_SHA256 =
-  "d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807";
+const AGREEMENT_V2_SHA256 =
+  "ec4066647aad291af1e7e88387b3dbfea8c63fce13da3e5ba64f11299793a19d";
 const REPO_OWNER = "pppop00";
 const REPO_NAME = "paiink";
 const REPO_BRANCH = "main";
@@ -26,11 +29,14 @@ const COMMIT_AUTHOR_NAME = "paiink-submit";
 const COMMIT_AUTHOR_EMAIL = "submit@paiink.com";
 const USER_AGENT = "paiink-submit/1.0";
 const MAX_HTML_BYTES = 5 * 1024 * 1024;
-const ACCOUNT_MIN_AGE_DAYS = 30;
-const DAILY_AUTHOR_LIMIT = 5;
+const IP_DAILY_LIMIT = 5;
+const RL_KEY_TTL_SECONDS = 36 * 3600; // auto-expire next day; 36h covers DST/timezone slop
 const SLUG_MAX_VERSION = 100;
 const GITHUB_TIMEOUT_MS = 10_000;
 const ALLOWED_ORIGIN = "https://www.paiink.com";
+// Loose email syntax — we never deliver mail from the Worker, the agreement
+// makes accuracy the author's responsibility. Reject the obvious garbage only.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const LICENSES = ["CC-BY-NC-4.0", "CC-BY-4.0", "CC0-1.0", "ARR"] as const;
 type License = (typeof LICENSES)[number];
@@ -41,6 +47,10 @@ type Language = (typeof LANGUAGES)[number];
 
 interface Env {
   GITHUB_TOKEN: string;
+  // KV namespace used for IP rate limiting. If unbound, rate limit is a no-op
+  // (fail-soft). The dashboard binding name and the namespace id are wired up
+  // separately in wrangler.toml; see worker/README.md.
+  KV_RATE_LIMIT?: KVNamespace;
 }
 
 interface SubmitPayload {
@@ -48,6 +58,7 @@ interface SubmitPayload {
   zone: Zone;
   language: Language;
   display_name: string;
+  email: string;
   skill_name: string;
   skill_repo_url: string;
   skill_repo_commit: string;
@@ -85,7 +96,7 @@ interface Manifest {
     api_request_id?: string;
   };
   author: {
-    github: string;
+    email: string;
     display_name: string;
   };
   agreement: {
@@ -108,7 +119,7 @@ class HttpError extends Error {
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -290,6 +301,7 @@ async function parsePayload(req: Request): Promise<SubmitPayload> {
   let rawZone: unknown;
   let rawLanguage: unknown;
   let rawDisplayName: unknown;
+  let rawEmail: unknown;
   let rawSkillName: unknown;
   let rawSkillRepoUrl: unknown;
   let rawSkillRepoCommit: unknown;
@@ -315,6 +327,7 @@ async function parsePayload(req: Request): Promise<SubmitPayload> {
     rawZone = o.zone;
     rawLanguage = o.language;
     rawDisplayName = o.display_name;
+    rawEmail = o.email;
     rawSkillName = o.skill_name;
     rawSkillRepoUrl = o.skill_repo_url;
     rawSkillRepoCommit = o.skill_repo_commit;
@@ -338,6 +351,7 @@ async function parsePayload(req: Request): Promise<SubmitPayload> {
     rawZone = form.get("zone");
     rawLanguage = form.get("language");
     rawDisplayName = form.get("display_name");
+    rawEmail = form.get("email");
     rawSkillName = form.get("skill_name");
     rawSkillRepoUrl = form.get("skill_repo_url");
     rawSkillRepoCommit = form.get("skill_repo_commit");
@@ -377,6 +391,10 @@ async function parsePayload(req: Request): Promise<SubmitPayload> {
   const zone = assertEnum(rawZone, "zone", ZONES);
   const language = assertEnum(rawLanguage, "language", LANGUAGES);
   const display_name = assertString(rawDisplayName, "display_name", { min: 1, max: 100 });
+  const email = assertString(rawEmail, "email", { min: 3, max: 254 });
+  if (!EMAIL_RE.test(email)) {
+    throw new HttpError(400, "validation", "email must be a syntactically valid address");
+  }
   const skill_name = assertString(rawSkillName, "skill_name", { min: 1, max: 200 });
   const skill_repo_url = assertString(rawSkillRepoUrl, "skill_repo_url");
   if (!/^https:\/\/github\.com\/[\w-]+\/[\w.-]+$/.test(skill_repo_url)) {
@@ -404,6 +422,7 @@ async function parsePayload(req: Request): Promise<SubmitPayload> {
     zone,
     language,
     display_name,
+    email,
     skill_name,
     skill_repo_url,
     skill_repo_commit,
@@ -417,34 +436,6 @@ async function parsePayload(req: Request): Promise<SubmitPayload> {
 }
 
 // ---------- gating ----------
-
-interface GithubUser {
-  login: string;
-  created_at: string;
-}
-
-async function verifySubmitterPat(pat: string): Promise<GithubUser> {
-  const r = await ghFetch("https://api.github.com/user", { token: pat });
-  if (r.status === 401 || r.status === 403) {
-    throw new HttpError(401, "auth", "invalid PAT");
-  }
-  if (r.status !== 200 || typeof r.body !== "object" || r.body === null) {
-    throw new HttpError(401, "auth", `PAT verification failed (status ${r.status})`);
-  }
-  const u = r.body as Record<string, unknown>;
-  if (!isString(u.login) || !isString(u.created_at)) {
-    throw new HttpError(401, "auth", "PAT response missing login/created_at");
-  }
-  const createdMs = Date.parse(u.created_at);
-  if (Number.isNaN(createdMs)) {
-    throw new HttpError(401, "auth", "PAT response has invalid created_at");
-  }
-  const ageDays = (Date.now() - createdMs) / 86_400_000;
-  if (ageDays < ACCOUNT_MIN_AGE_DAYS) {
-    throw new HttpError(403, "account_age", `account too new (must be ${ACCOUNT_MIN_AGE_DAYS}+ days)`);
-  }
-  return { login: u.login, created_at: u.created_at };
-}
 
 async function verifySkillRepoPublic(owner: string, repo: string): Promise<void> {
   // No token here — we want to confirm anonymous reachability.
@@ -494,71 +485,35 @@ async function pickAvailableSlug(
   throw new HttpError(409, "slug", "too many versions; pick a new title");
 }
 
-async function enforceDailyRateLimit(
-  login: string,
-  token: string,
-): Promise<void> {
-  // Global per-author daily cap — counts today's articles across ALL zones.
-  // Iterate every zone so an author can't bypass by spreading across finance + web3.
-  const today = todayUtcDate();
+async function enforceIpRateLimit(req: Request, env: Env): Promise<void> {
+  // Best-effort daily cap keyed by CF-Connecting-IP. Fail-soft: if KV is
+  // unbound or unreachable, let the request through rather than 500-ing the
+  // submitter. Stack with Cloudflare WAF rate-limiting rules for hard limits.
+  const kv = env.KV_RATE_LIMIT;
+  if (!kv) return;
+
+  const ip = req.headers.get("CF-Connecting-IP") ?? "unknown";
+  const key = `rl:${todayUtcDate()}:${ip}`;
   let count = 0;
-  for (const zone of ZONES) {
-    const listResp = await ghFetch(
-      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/content/${zone}?ref=${REPO_BRANCH}`,
-      { token, allow404: true },
+  try {
+    const v = await kv.get(key);
+    count = v ? parseInt(v, 10) : 0;
+    if (Number.isNaN(count)) count = 0;
+  } catch {
+    return; // KV read failed — fail-soft, don't block
+  }
+  if (count >= IP_DAILY_LIMIT) {
+    throw new HttpError(
+      429,
+      "rate_limit",
+      `rate limit: max ${IP_DAILY_LIMIT} articles/day from your IP`,
     );
-    if (listResp.status === 404) continue; // zone has no content yet
-    if (listResp.status !== 200 || !Array.isArray(listResp.body)) {
-      throw new HttpError(500, "rate_limit_check", `failed to list zone (${listResp.status})`);
-    }
-
-    // Only inspect entries whose name already hints at today's date — keeps the
-    // fan-out bounded even if zones grow large. Base slugs always end in
-    // -YYYY-MM-DD (possibly followed by -vN), so a substring match is enough.
-    const candidates = (listResp.body as Array<Record<string, unknown>>).filter(
-      (entry) =>
-        entry.type === "dir" &&
-        isString(entry.name) &&
-        (entry.name as string).includes(today) &&
-        isString(entry.path),
-    );
-
-    for (const entry of candidates) {
-      const path = entry.path as string;
-      const manifestResp = await ghFetch(
-        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}/ai-audit.json?ref=${REPO_BRANCH}`,
-        { token, allow404: true },
-      );
-      if (manifestResp.status !== 200 || typeof manifestResp.body !== "object" || manifestResp.body === null) {
-        continue;
-      }
-      const m = manifestResp.body as Record<string, unknown>;
-      if (!isString(m.content)) continue;
-      let manifestJson: unknown;
-      try {
-        const decoded = new TextDecoder().decode(base64ToBytes((m.content as string).replace(/\n/g, "")));
-        manifestJson = JSON.parse(decoded);
-      } catch {
-        continue;
-      }
-      if (typeof manifestJson !== "object" || manifestJson === null) continue;
-      const mm = manifestJson as Record<string, unknown>;
-      const author = mm.author as Record<string, unknown> | undefined;
-      const article = mm.article as Record<string, unknown> | undefined;
-      if (!author || !article) continue;
-      const claimedGithub = isString(author.github) ? (author.github as string).toLowerCase() : "";
-      const publishedAt = isString(article.published_at) ? (article.published_at as string) : "";
-      if (claimedGithub === login.toLowerCase() && publishedAt.startsWith(today)) {
-        count++;
-        if (count >= DAILY_AUTHOR_LIMIT) {
-          throw new HttpError(
-            429,
-            "rate_limit",
-            `rate limit: max ${DAILY_AUTHOR_LIMIT} articles/day per author (across all zones)`,
-          );
-        }
-      }
-    }
+  }
+  try {
+    await kv.put(key, String(count + 1), { expirationTtl: RL_KEY_TTL_SECONDS });
+  } catch {
+    // Increment failed — let the submission through; the WAF + agreement
+    // are the real guarantees. Better than failing a legitimate submitter.
   }
 }
 
@@ -684,19 +639,11 @@ async function commitFiles(
 // ---------- main handler ----------
 
 async function handleSubmit(req: Request, env: Env): Promise<Response> {
-  // PAT is passed in the Authorization header so it never lands in form
-  // logs / network traces alongside the rest of the payload.
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const m = authHeader.match(/^Bearer\s+(\S+)$/);
-  if (!m) {
-    throw new HttpError(401, "auth", "Authorization: Bearer <pat> header required");
-  }
-  const submitterPat = m[1] as string;
-
+  // Agreement v2: no PAT, no GitHub. Identity is the declared email +
+  // display_name. Rate limit is per IP via KV.
   const payload = await parsePayload(req);
 
-  const user = await verifySubmitterPat(submitterPat);
-  const login = user.login;
+  await enforceIpRateLimit(req, env);
 
   const { owner: skillOwner, repo: skillRepo } = parseRepoUrl(payload.skill_repo_url);
   await verifySkillRepoPublic(skillOwner, skillRepo);
@@ -710,8 +657,6 @@ async function handleSubmit(req: Request, env: Env): Promise<Response> {
   }
   const baseSlug = `${baseKebab}-${todayUtcDate()}`;
   const slug = await pickAvailableSlug(payload.zone, baseSlug, env.GITHUB_TOKEN);
-
-  await enforceDailyRateLimit(login, env.GITHUB_TOKEN);
 
   const contentSha = await sha256Hex(payload.html);
   const publishedAt = nowIso();
@@ -742,12 +687,12 @@ async function handleSubmit(req: Request, env: Env): Promise<Response> {
       ...(payload.api_request_id ? { api_request_id: payload.api_request_id } : {}),
     },
     author: {
-      github: login,
+      email: payload.email,
       display_name: payload.display_name,
     },
     agreement: {
-      version: "v1",
-      sha256: AGREEMENT_V1_SHA256,
+      version: "v2",
+      sha256: AGREEMENT_V2_SHA256,
       accepted_at: publishedAt,
     },
   };

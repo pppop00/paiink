@@ -4,14 +4,13 @@ compatibility_date = "2026-05-15"
 # nodejs_compat is intentionally omitted — this Worker uses Web APIs only
 # (fetch, crypto.subtle, FormData, crypto.randomUUID).
 
-# Routes are bound manually in the Cloudflare dashboard, not here, so this
-# Worker can sit behind paiink.com/api/* once the zone is moved to CF DNS.
-#
-# In CF dashboard:
-#   Workers & Pages -> paiink-api -> Settings -> Triggers -> Routes
-#   Add route:   paiink.com/api/*
-#   Zone:        paiink.com
-#
+# Custom Domain (api.paiink.com) is bound manually in the Cloudflare dashboard:
+#   Workers & Pages -> paiink-api -> Settings -> Domains & Routes
+#   -> Add Custom Domain: api.paiink.com
+# Done as a Custom Domain (not a Route) because www.paiink.com is DNS-only
+# (grey cloud) for CN reach via BunnyCDN — Routes can't intercept traffic
+# that bypasses CF. The api subdomain gets its own proxied DNS record.
+
 # Secrets (set via `wrangler secret put <NAME>` — never commit them):
 #   GITHUB_TOKEN  — Fine-grained PAT for pppop00/paiink with:
 #                     Repository: pppop00/paiink
@@ -20,6 +19,20 @@ compatibility_date = "2026-05-15"
 #
 # Local dev: put GITHUB_TOKEN in worker/.dev.vars (gitignored).
 
+# KV namespace for IP rate limiting (5 submissions/IP/day). Fail-soft:
+# if the binding is missing or the namespace is unreachable, the Worker
+# lets the request through rather than 500-ing. Configure WAF rate-limit
+# rules in the CF dashboard for hard, edge-level limits.
+#
+# To enable:
+#   1. CF dashboard -> Workers & Pages -> KV -> Create namespace
+#      Name: paiink-rl  (or anything; only the id matters)
+#   2. Copy the namespace id, paste it below, and uncomment the block.
+#   3. npx wrangler deploy
+#
+# [[kv_namespaces]]
+# binding = "KV_RATE_LIMIT"
+# id = "<paste-namespace-id-here>"
+
 # Workers free-tier limits: 100k req/day, 10ms CPU/req (we are I/O-bound
-# on GitHub calls so we use mostly wall time, not CPU time). No bindings
-# to Durable Objects, D1, R2 — pure stateless Worker.
+# on GitHub calls so we use mostly wall time, not CPU time).

@@ -61,8 +61,10 @@ SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "ai-audit" / 
 # v1 markdown lives at content/_meta/agreement-v1.md. Append-only: never
 # mutate an existing entry, even to fix a typo — ship a new version instead.
 AGREEMENT_V1_SHA256 = "d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807"
+AGREEMENT_V2_SHA256 = "ec4066647aad291af1e7e88387b3dbfea8c63fce13da3e5ba64f11299793a19d"
 PINNED_AGREEMENT_HASHES: dict[str, str] = {
     "v1": AGREEMENT_V1_SHA256,
+    "v2": AGREEMENT_V2_SHA256,
 }
 
 # Allowed values for article.license. Kept in sync with the enum in
@@ -321,10 +323,20 @@ def check_signature(manifest: dict, result: Result) -> None:
 
 
 def check_github_oauth_match(manifest: dict, result: Result, *, pr_author: str | None) -> None:
-    if pr_author is None:
-        result.warn("github_oauth_match", "skipped (no --pr-author given; CLI mode)")
-        return
+    # Legacy check from the PR-submission era. The web-upload flow (v2+) does
+    # not use GitHub identity at all; author.github is optional. We keep this
+    # check around as a no-op warn for backwards compat — it only does
+    # anything when --pr-author is supplied AND the manifest has author.github.
     claimed = manifest.get("author", {}).get("github", "")
+    if pr_author is None:
+        if claimed:
+            result.warn("github_oauth_match", "skipped (no --pr-author given; CLI mode)")
+        else:
+            result.warn("github_oauth_match", "skipped (no author.github; v2+ web-upload manifest)")
+        return
+    if not claimed:
+        result.warn("github_oauth_match", f"--pr-author given as {pr_author!r} but manifest has no author.github")
+        return
     if claimed.lower() == pr_author.lower():
         result.ok("github_oauth_match")
     else:
