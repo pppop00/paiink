@@ -68,6 +68,19 @@ python3 tools/publish.py <skill-output-dir> --zone finance --title "..."
   that touches `content/**/ai-audit.json`. Site rebuild on push is handled
   by 4EVERLAND (not GitHub Actions).
 
+## `tools/unpublish.py`
+
+Symmetric to publish. Removes `content/<zone>/<slug>/`, commits, pushes.
+The live URL goes 404; per-deploy IPFS snapshots remain.
+
+Use it when:
+- An article was published with a known data/render bug (e.g. anamnesis
+  I-008 broken charts) and needs to come down pending a re-run.
+- You retract an article (legal, factual error).
+
+Always pass `--reason` for the audit trail — it goes into the commit
+message and stays in git history forever.
+
 ## How `tools/publish.py` works
 
 This is the canonical publishing path. It composes:

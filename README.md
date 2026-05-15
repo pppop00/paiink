@@ -106,6 +106,31 @@ alias pai-publish='python3 ~/Desktop/Projects/pai/tools/publish.py'
 
 The printed public key goes in a public gist as `pai-public-key.txt` so verifiers can pin it to your GitHub identity.
 
+## Unpublishing
+
+Symmetric to publish:
+
+```bash
+python3 tools/unpublish.py finance/<slug>
+# or
+python3 tools/unpublish.py --zone finance --slug <slug> --reason "broken chart"
+```
+
+What it does:
+
+1. Removes `content/<zone>/<slug>/`.
+2. Commits with `unpublish: <title>` + your reason.
+3. Pushes. 4EVERLAND rebuilds in ~60–90s and the live URL goes 404.
+
+**Caveat:** historical per-deploy IPFS CIDs are immutable. A reader who has the
+old `paink-<hash>-pppop00.ipfs.4everland.app` URL can still reach the
+unpublished article via that snapshot. If you need to scrub a file from IPFS
+entirely (because it's defamatory, contains PII, etc.), that's a different
+operation — contact 4EVERLAND support to unpin the CID, and accept that
+public IPFS gateways may have already cached it.
+
+Flags: `--dry-run`, `--no-push`, `--no-commit`, `--yes` (skip confirmation).
+
 ## Requirements for your skill repo
 
 For a manifest to pass CI, the **skill itself must be on GitHub publicly**:
