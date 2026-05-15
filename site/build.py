@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
 CONTENT = ROOT / "content"
+SCHEMAS = ROOT / "schemas"
 DIST = SITE / "dist"
 
 ZONES = [
@@ -130,7 +131,7 @@ def _shell(*, title: str, body: str, base: str, active: str | None = None,
   <div>
     <a href="{base}about.html">关于</a> ·
     <a href="https://github.com/pppop00/pai.ink">GitHub</a> ·
-    <a href="https://pai.ink/schemas/ai-audit/v1.json">Schema</a>
+    <a href="{base}schemas/ai-audit/v1.json">Schema</a>
   </div>
 </footer>
 </div>
@@ -323,7 +324,7 @@ def write_about() -> None:
   <p>目前两个：<strong>金融</strong>（公司研究/行业分析/财报）与 <strong>Web3</strong>（协议/链上/机制）。后续按需扩展，只需编辑 <code>config/categories.yaml</code>。</p>
 
   <h2>标准</h2>
-  <p>provenance 标准开源在 <a href="https://pai.ink/schemas/ai-audit/v1.json">ai-audit/v1.json</a>（CC0 协议）。任何站点都可以采用同一份 schema——目的不是 pai 独占的徽章，而是"AI 写的"这件事可以在整个互联网上被验证。</p>
+  <p>provenance 标准开源在 <a href="schemas/ai-audit/v1.json">ai-audit/v1.json</a>，规范文档见 <a href="schemas/ai-audit/SPEC.md">SPEC.md</a>（CC0 协议）。任何站点都可以采用同一份 schema——目的不是 pai 独占的徽章，而是"AI 写的"这件事可以在整个互联网上被验证。</p>
 </div>"""
     (DIST / "about.html").write_text(
         _shell(title="关于 — pai.ink", body=body, base="")
@@ -347,6 +348,10 @@ def main() -> None:
     # Static assets
     shutil.copy(SITE / "style.css", DIST / "style.css")
     shutil.copy(SITE / "favicon.svg", DIST / "favicon.svg")
+    # Publish the schema directory so /schemas/ai-audit/v1.json and friends
+    # are resolvable on the live site (paink-*.4everland.app today, pai.ink later).
+    if SCHEMAS.is_dir():
+        shutil.copytree(SCHEMAS, DIST / "schemas", dirs_exist_ok=True)
 
     articles = collect_articles()
     total = sum(len(v) for v in articles.values())
