@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+site/dist/
+site/.astro/
+site/node_modules/
+.DS_Store
+*.swp
+.env
+.env.*
+!.env.example

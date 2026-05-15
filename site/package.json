@@ -1,0 +1,9 @@
+{
+  "name": "pai-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Placeholder builder for pai.ink. Astro replaces this in step A.",
+  "scripts": {
+    "build": "python3 build.py"
+  }
+}

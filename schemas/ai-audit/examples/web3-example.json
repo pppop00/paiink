@@ -1,0 +1,65 @@
+{
+  "schema": "https://pai.ink/schemas/ai-audit/v1.json",
+  "schema_version": "1.0",
+  "article": {
+    "id": "c1e2f3a4-b5c6-4d7e-8f9a-0b1c2d3e4f5a",
+    "title": "Aave V4 Risk Architecture: A Walkthrough",
+    "subtitle": "Hub-and-spoke design and what it means for cross-asset liquidation",
+    "category": "web3",
+    "tags": ["aave", "defi", "risk", "lending"],
+    "language": "en-US",
+    "content_sha256": "abc123def456789012345678901234567890abcdef1234567890abcdef123456",
+    "content_path": "index.html",
+    "assets": [
+      {
+        "path": "assets/hub-spoke-diagram.svg",
+        "sha256": "def456789012345678901234567890abcdef1234567890abcdef123456abc123",
+        "media_type": "image/svg+xml"
+      }
+    ],
+    "word_count": 2870
+  },
+  "skill": {
+    "name": "Anamnesis Research",
+    "version": "0.3.1",
+    "repo_url": "https://github.com/pppop00/anamnesis-research",
+    "repo_commit": "f1e2d3c4b5a69788776655443322110099887766",
+    "skill_md_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "entry_file": "SKILL.md"
+  },
+  "generation": {
+    "model": "claude-opus-4-7",
+    "harness": "claude-code-cli",
+    "started_at": "2026-05-14T11:02:00Z",
+    "finished_at": "2026-05-14T11:34:08Z",
+    "prompt_template_sha256": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+    "user_inputs": [
+      { "role": "protocol", "value": "Aave" },
+      { "role": "version", "value": "v4" },
+      {
+        "role": "whitepaper_url",
+        "url": "https://github.com/aave-dao/aave-v4/blob/main/whitepaper.pdf",
+        "sha256": "1111222233334444555566667777888899990000aaaabbbbccccddddeeeeffff"
+      },
+      {
+        "role": "github_repo",
+        "url": "https://github.com/aave-dao/aave-v4",
+        "sha256": "2222333344445555666677778888999900001111aaaabbbbccccddddeeeeffff"
+      }
+    ],
+    "transcript_sha256": "aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff66667777888899990000",
+    "transcript_storage": "ar://1q2w3e4r5t6y7u8i9o0p-anamnesis-aave-transcript",
+    "reproducibility_note": "First-pass output. Manually fixed two markdown link typos before publishing; the diff is in the transcript at lines 412 and 489. Otherwise unedited."
+  },
+  "author": {
+    "github": "pppop00",
+    "display_name": "Zelong",
+    "wallet": "pppop00.eth",
+    "wallet_sig": "0x6b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e1b"
+  },
+  "signature": {
+    "alg": "ed25519",
+    "public_key": "MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=",
+    "sig": "QmYQ8jHkV1jY3KQqXNuCwH4F0n0sRk6mE6m3F8h1pV3W8gQy8KQ0YQ8jHkV1jY3KQqXNuCwH4F0n0sRk6mE6m3F8h1pV3W8gQy8KQ0X="
+  }
+}

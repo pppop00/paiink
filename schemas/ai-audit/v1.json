@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pai.ink/schemas/ai-audit/v1.json",
+  "title": "AI Audit Manifest v1",
+  "description": "Provenance manifest for an AI-written article published on pai. Pairs the rendered article with the skill that produced it, the model that ran the skill, the inputs that were fed in, and the author who signs off.",
+  "type": "object",
+  "required": [
+    "schema",
+    "schema_version",
+    "article",
+    "skill",
+    "generation",
+    "author"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "https://pai.ink/schemas/ai-audit/v1.json"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+
+    "article": {
+      "type": "object",
+      "required": ["id", "title", "category", "content_sha256", "content_path"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "description": "UUID v4 assigned by the author at submission time."
+        },
+        "title": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "subtitle": { "type": "string", "maxLength": 500 },
+        "category": {
+          "type": "string",
+          "enum": ["finance", "web3"],
+          "description": "Top-level zone. Extend by editing config/categories.yaml in the articles-repo."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 40 },
+          "maxItems": 12
+        },
+        "language": {
+          "type": "string",
+          "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+          "description": "BCP-47 language tag, e.g. zh-CN, en-US."
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of the rendered article file (typically index.html) verbatim."
+        },
+        "content_path": {
+          "type": "string",
+          "description": "Relative path of the rendered article inside the submission folder.",
+          "examples": ["index.html"]
+        },
+        "assets": {
+          "type": "array",
+          "description": "Additional files shipped with the article (images, data). Each is hashed.",
+          "items": {
+            "type": "object",
+            "required": ["path", "sha256"],
+            "additionalProperties": false,
+            "properties": {
+              "path": { "type": "string" },
+              "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "media_type": { "type": "string" }
+            }
+          }
+        },
+        "word_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "skill": {
+      "type": "object",
+      "required": ["name", "repo_url", "repo_commit"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable skill name, e.g. \"Equity Research Skill\"."
+        },
+        "version": { "type": "string", "description": "Semver if available." },
+        "repo_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Public Git URL. Must be reachable without auth at verification time.",
+          "pattern": "^https://(github\\.com|gitlab\\.com|codeberg\\.org|bitbucket\\.org)/.+"
+        },
+        "repo_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$",
+          "description": "Exact commit hash that produced this article."
+        },
+        "skill_md_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of SKILL.md (or equivalent entry file) at that commit. Lets verifiers detect a hijacked repo without re-cloning."
+        },
+        "entry_file": {
+          "type": "string",
+          "description": "Path to the skill's entrypoint at that commit.",
+          "examples": ["SKILL.md", "skill.yaml"]
+        }
+      }
+    },
+
+    "generation": {
+      "type": "object",
+      "required": ["model", "started_at", "finished_at"],
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Model ID that produced the article.",
+          "examples": ["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+        },
+        "harness": {
+          "type": "string",
+          "description": "Runtime that drove the skill.",
+          "examples": ["claude-code-cli", "claude-agent-sdk", "anthropic-api"]
+        },
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "prompt_template_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of the prompt template used (e.g. the skill's SYSTEM prompt). Allows reproducibility without leaking secrets."
+        },
+        "user_inputs": {
+          "type": "array",
+          "description": "Inputs the user supplied to the skill. Hash large blobs rather than embedding them.",
+          "items": {
+            "type": "object",
+            "required": ["role"],
+            "additionalProperties": false,
+            "properties": {
+              "role": {
+                "type": "string",
+                "description": "Logical name of the input, e.g. \"ticker\", \"filing_url\", \"image\"."
+              },
+              "value": { "type": "string", "description": "Inline value for small inputs." },
+              "url": { "type": "string", "format": "uri" },
+              "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "media_type": { "type": "string" }
+            }
+          }
+        },
+        "transcript_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Optional: SHA-256 of the full agent transcript (JSONL). Lets the author publish the transcript later for forensic review."
+        },
+        "transcript_storage": {
+          "type": "string",
+          "description": "Optional storage hint for the transcript.",
+          "examples": [
+            "r2://pai-transcripts/<id>.jsonl",
+            "ipfs://bafy...",
+            "ar://<arweave-tx-id>"
+          ]
+        },
+        "reproducibility_note": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Free-text note about determinism, retries, manual edits applied to the model output, etc. Honesty here is the entire point of provenance."
+        }
+      }
+    },
+
+    "author": {
+      "type": "object",
+      "required": ["github"],
+      "additionalProperties": false,
+      "properties": {
+        "github": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$",
+          "description": "GitHub login of the author. Verified via OAuth or by being the PR opener."
+        },
+        "display_name": { "type": "string", "maxLength": 80 },
+        "wallet": {
+          "type": "string",
+          "pattern": "^(0x[a-fA-F0-9]{40}|[a-zA-Z0-9_.-]+\\.eth)$",
+          "description": "Optional EVM address or ENS name. Required for Web3-zone on-chain timestamping."
+        },
+        "wallet_sig": {
+          "type": "string",
+          "description": "Optional EIP-191 signature over the canonical manifest by the wallet above."
+        }
+      }
+    },
+
+    "signature": {
+      "type": "object",
+      "description": "Author's signature over the canonical JSON form of every other field in this manifest (RFC 8785 JCS).",
+      "required": ["alg", "public_key", "sig"],
+      "additionalProperties": false,
+      "properties": {
+        "alg": { "type": "string", "enum": ["ed25519"] },
+        "public_key": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]+=*$",
+          "description": "Base64-encoded ed25519 public key (32 bytes)."
+        },
+        "sig": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]+=*$",
+          "description": "Base64-encoded ed25519 signature (64 bytes) over the JCS-canonicalized manifest minus this `signature` field."
+        }
+      }
+    },
+
+    "verifier": {
+      "type": "object",
+      "description": "Filled in by pai's CI after successful validation. Authors should leave this empty.",
+      "required": ["verified_at", "verifier_version", "checks_passed"],
+      "additionalProperties": false,
+      "properties": {
+        "verified_at": { "type": "string", "format": "date-time" },
+        "verifier_version": { "type": "string" },
+        "checks_passed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "schema_valid",
+              "content_hash_match",
+              "assets_hash_match",
+              "skill_repo_public",
+              "skill_commit_exists",
+              "skill_md_hash_match",
+              "signature_valid",
+              "github_oauth_match",
+              "wallet_sig_valid"
+            ]
+          }
+        },
+        "checks_warned": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Non-blocking warnings, e.g. missing optional transcript."
+        },
+        "timestamp_anchor": {
+          "type": "object",
+          "description": "Optional immutable anchor for the manifest hash.",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["arweave", "ipfs", "ethereum", "opentimestamps"]
+            },
+            "ref": { "type": "string" },
+            "anchored_at": { "type": "string", "format": "date-time" }
+          },
+          "required": ["kind", "ref"]
+        }
+      }
+    }
+  }
+}

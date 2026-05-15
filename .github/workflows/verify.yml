@@ -1,0 +1,73 @@
+name: verify ai-audit manifests
+
+on:
+  pull_request:
+    paths:
+      - "content/**"
+      - "schemas/**"
+      - "tools/**"
+      - ".github/workflows/verify.yml"
+  push:
+    branches: [main]
+    paths:
+      - "content/**"
+      - "schemas/**"
+      - "tools/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/requirements.txt
+
+      - run: pip install -r tools/requirements.txt
+
+      - name: Find manifests touched in this PR
+        id: find
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- 'content/**/ai-audit.json')
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'content/**/ai-audit.json' || true)
+          fi
+          echo "manifests<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "Changed manifests:"
+          echo "$CHANGED"
+
+      - name: Verify each manifest
+        if: steps.find.outputs.manifests != ''
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          FAIL=0
+          while IFS= read -r m; do
+            [ -z "$m" ] && continue
+            echo "::group::verify $m"
+            if [ -n "${PR_AUTHOR:-}" ]; then
+              python tools/verify_audit.py --pr-author "$PR_AUTHOR" "$m" || FAIL=1
+            else
+              python tools/verify_audit.py "$m" || FAIL=1
+            fi
+            echo "::endgroup::"
+          done <<< "${{ steps.find.outputs.manifests }}"
+          exit $FAIL
+
+      - name: No manifests to verify
+        if: steps.find.outputs.manifests == ''
+        run: echo "No content/**/ai-audit.json changed in this PR — nothing to verify."

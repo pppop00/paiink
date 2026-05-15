@@ -1,0 +1,66 @@
+{
+  "schema": "https://pai.ink/schemas/ai-audit/v1.json",
+  "schema_version": "1.0",
+  "article": {
+    "id": "543b34c7-84e4-4eea-9207-e692ed72c657",
+    "title": "废弃物管理（WM）— 权益研究报告",
+    "category": "finance",
+    "tags": [
+      "WM",
+      "waste",
+      "公用事业"
+    ],
+    "language": "zh-CN",
+    "content_sha256": "aa43f572dc34986f474b764978e480967e8963d326653c48bca79ba2d9066891",
+    "content_path": "index.html",
+    "assets": [
+      {
+        "path": "cards/01_cover.png",
+        "sha256": "36562cf8cc8cf1f7236af3664b9f2c8f22e6a8866ebfd25ebb19a0ecf7f92d4d",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/02_background_industry.png",
+        "sha256": "fe8589f9c0c5dd78117fc6eff85ea50dd2d9af272b38fc39f97b0f183db8dd1c",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/03_revenue.png",
+        "sha256": "8ed95e2446c142575fea4f01e4dc59a3cc8aa322f1d93318f1ad57707ec3b877",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/04_business_outlook.png",
+        "sha256": "8e2ecf3bd7f6e099821416b779af2ad13a6a7f4a7b808bdbbeb346c101a9695a",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/05_brand.png",
+        "sha256": "14aa506c3a50b4d9975cb30557dd1e01087258f236b6aa607f360a4b2621f168",
+        "media_type": "image/png"
+      },
+      {
+        "path": "cards/06_post_copy.png",
+        "sha256": "d659a580ab13b78b8d3278c525355508f8fdbe304f5791187b7908ba8314bdeb",
+        "media_type": "image/png"
+      }
+    ],
+    "word_count": 3099,
+    "subtitle": "2026 Q1 全美最大固废龙头的现金流护城河复盘"
+  },
+  "skill": {
+    "name": "Anamnesis Research",
+    "repo_url": "https://github.com/pppop00/anamnesis-research",
+    "repo_commit": "0000000000000000000000000000000000000000"
+  },
+  "generation": {
+    "model": "claude-opus-4-7",
+    "harness": "claude-code-cli",
+    "started_at": "2026-05-15T03:00:53.628977Z",
+    "finished_at": "2026-05-15T03:00:53.629217Z"
+  },
+  "author": {
+    "github": "pppop00",
+    "display_name": "Zelong"
+  }
+}
