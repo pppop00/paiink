@@ -1,18 +1,9 @@
 #!/usr/bin/env python3
-"""site/build.py — minimal static-site builder for pai.
+"""site/build.py — static site builder for pai.ink.
 
-This is the *placeholder* builder used until step A replaces it with
-Astro. It walks `content/<zone>/<slug>/`, copies each article verbatim
-into `site/dist/<zone>/<slug>/`, and generates four kinds of index
-pages from the manifests:
-
-    site/dist/index.html              — landing
-    site/dist/<zone>/index.html       — zone listing
-    site/dist/verify/<id>/index.html  — per-article verification page
-
-No templating engine. No deps beyond stdlib. The point is for 4EVERLAND
-to have *something* to serve while we get latency data; Astro arrives
-in step A.
+Placeholder until step A replaces it with Astro. Walks `content/<zone>/<slug>/`,
+copies each article verbatim into `dist/<zone>/<slug>/`, generates landing,
+zone listings, verify pages, and about page.
 
 Run from repo root:
     python site/build.py
@@ -23,15 +14,31 @@ from __future__ import annotations
 import datetime as dt
 import html
 import json
+import re
 import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+SITE = ROOT / "site"
 CONTENT = ROOT / "content"
-DIST = ROOT / "site" / "dist"
-ZONES = ["finance", "web3"]
-ZONE_LABELS = {"finance": "金融区 / Finance", "web3": "Web3 区 / Web3"}
+DIST = SITE / "dist"
 
+ZONES = [
+    {"key": "finance", "name": "金融", "name_en": "Finance",
+     "lede": "公司研究、行业分析、财报解读。每篇都附 AI 出处证明。"},
+    {"key": "web3",    "name": "Web3",  "name_en": "",
+     "lede": "协议解读、链上分析、机制设计。每篇都附 AI 出处证明。"},
+]
+
+
+def _zone_title(zone: dict) -> str:
+    if zone["name_en"] and zone["name_en"] != zone["name"]:
+        return f"{zone['name']} / {zone['name_en']}"
+    return zone["name"]
+ZONES_BY_KEY = {z["key"]: z for z in ZONES}
+
+
+# ---------- collection ----------
 
 def _read_manifest(article_dir: Path) -> dict | None:
     m = article_dir / "ai-audit.json"
@@ -43,85 +50,88 @@ def _read_manifest(article_dir: Path) -> dict | None:
         return None
 
 
-def _slug_of(article_dir: Path) -> str:
-    return article_dir.name
-
-
 def collect_articles() -> dict[str, list[dict]]:
-    """Return {zone: [{slug, manifest, ...}, ...]}."""
-    out: dict[str, list[dict]] = {z: [] for z in ZONES}
+    out: dict[str, list[dict]] = {z["key"]: [] for z in ZONES}
     for zone in ZONES:
-        zone_dir = CONTENT / zone
+        zone_dir = CONTENT / zone["key"]
         if not zone_dir.is_dir():
             continue
-        for article_dir in sorted(zone_dir.iterdir()):
-            if not article_dir.is_dir():
+        for d in sorted(zone_dir.iterdir()):
+            if not d.is_dir():
                 continue
-            manifest = _read_manifest(article_dir)
-            if not manifest:
+            m = _read_manifest(d)
+            if not m:
                 continue
-            out[zone].append({
-                "slug": _slug_of(article_dir),
-                "dir": article_dir,
-                "manifest": manifest,
-            })
+            out[zone["key"]].append({"slug": d.name, "dir": d, "manifest": m})
+    # newest first by finished_at
+    for k in out:
+        out[k].sort(
+            key=lambda a: a["manifest"].get("generation", {}).get("finished_at", ""),
+            reverse=True,
+        )
     return out
 
 
-# ---------- HTML helpers (yes, plain f-strings; this gets replaced) ----------
+# ---------- helpers ----------
 
-CSS = """
-:root { --fg:#1a2c4e; --muted:#6e6e6e; --bg:#f5f3ee; --card:#fff; --accent:#2e7d4f; --border:#cfc9bd; }
-* { box-sizing: border-box; }
-body { font-family: -apple-system, "Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif; color: var(--fg); background: var(--bg); margin: 0; line-height: 1.6; }
-.wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
-header.site { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
-header.site h1 { font-size: 28px; margin: 0; }
-header.site nav a { margin-left: 16px; color: var(--fg); text-decoration: none; }
-header.site nav a:hover { color: var(--accent); }
-h2 { font-size: 22px; margin-top: 40px; border-left: 4px solid var(--accent); padding-left: 12px; }
-.article { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 20px; margin: 16px 0; }
-.article h3 { margin: 0 0 6px; font-size: 18px; }
-.article a { color: var(--fg); text-decoration: none; }
-.article a:hover { color: var(--accent); }
-.article .meta { color: var(--muted); font-size: 13px; margin-top: 8px; }
-.article .meta a { color: var(--muted); text-decoration: underline; }
-.verify { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 20px; }
-.verify h2 { border: none; padding: 0; margin: 0 0 16px; }
-.verify pre { background: #f8f6f1; padding: 12px; overflow-x: auto; border-radius: 4px; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 8px; }
-.badge.ok { background: #e6f4ea; color: var(--accent); }
-.badge.warn { background: #fdf2e9; color: #b8842a; }
-.badge.unverified { background: #f5ebea; color: #a83232; }
-footer { color: var(--muted); font-size: 13px; margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--border); }
-footer a { color: var(--muted); }
-"""
+def _h(s: str | None) -> str:
+    return html.escape(s or "", quote=True)
 
 
-def _shell(title: str, body: str, *, base_depth: int = 0) -> str:
-    css_href = "../" * base_depth + "style.css"
+def _date_of(article: dict | None = None, *, manifest: dict | None = None, slug: str | None = None) -> str:
+    """Best date for display. Prefer a date embedded in the slug
+    (`...-YYYY-MM-DD`), falling back to manifest.generation.finished_at."""
+    if slug:
+        m = re.search(r"(\d{4})-(\d{2})-(\d{2})$", slug)
+        if m:
+            return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+    if manifest:
+        ts = manifest.get("generation", {}).get("finished_at", "")
+        m = re.match(r"(\d{4})-(\d{2})-(\d{2})", ts or "")
+        if m:
+            return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+    return ""
+
+
+def _author_name(manifest: dict) -> str:
+    a = manifest.get("author", {}) or {}
+    return a.get("display_name") or a.get("github") or "anonymous"
+
+
+def _shell(*, title: str, body: str, base: str, active: str | None = None,
+           extra_head: str = "") -> str:
+    """Render one page. `base` is the prefix to root, e.g. '', '../', '../../'."""
+    def link(href: str, label: str, key: str) -> str:
+        attr = ' aria-current="page"' if active == key else ""
+        return f'<a href="{base}{href}"{attr}>{label}</a>'
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{html.escape(title)}</title>
-<link rel="stylesheet" href="{css_href}">
+<meta name="color-scheme" content="light dark">
+<title>{_h(title)}</title>
+<link rel="icon" href="{base}favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{base}style.css">
+{extra_head}
 </head>
 <body>
 <div class="wrap">
-<header class="site">
-  <h1><a href="{'../' * base_depth or './'}" style="text-decoration:none;color:inherit">pai.ink</a></h1>
+<header class="masthead">
+  <div class="brand"><a href="{base or './'}">pai.ink</a></div>
   <nav>
-    <a href="{'../' * base_depth}finance/">金融</a>
-    <a href="{'../' * base_depth}web3/">Web3</a>
-    <a href="{'../' * base_depth}about.html">关于</a>
+    {link("finance/", "金融", "finance")}
+    {link("web3/", "Web3", "web3")}
   </nav>
 </header>
 {body}
-<footer>
-  AI-written, verifiably. 本站所有文章带可校验 <code>ai-audit.json</code> 证明。
-  Schema: <a href="https://pai.ink/schemas/ai-audit/v1.json">ai-audit/v1</a>.
+<footer class="site">
+  <div><a href="{base or './'}">pai.ink</a> · AI 写作，公开可验证</div>
+  <div>
+    <a href="{base}about.html">关于</a> ·
+    <a href="https://github.com/pppop00/pai.ink">GitHub</a> ·
+    <a href="https://pai.ink/schemas/ai-audit/v1.json">Schema</a>
+  </div>
 </footer>
 </div>
 </body>
@@ -129,154 +139,227 @@ def _shell(title: str, body: str, *, base_depth: int = 0) -> str:
 """
 
 
-def _article_card(zone: str, slug: str, manifest: dict, *, base_depth: int) -> str:
-    art = manifest.get("article", {})
-    skill = manifest.get("skill", {})
-    author = manifest.get("author", {})
-    verifier = manifest.get("verifier", {})
-    title = html.escape(art.get("title", slug))
-    subtitle = html.escape(art.get("subtitle", ""))
-    article_href = f"{'../' * base_depth}{zone}/{slug}/"
-    verify_href = f"{'../' * base_depth}verify/{art.get('id', '')}/"
-    author_name = html.escape(author.get("display_name") or author.get("github", "anonymous"))
-    skill_name = html.escape(skill.get("name", "—"))
-    badge = '<span class="badge ok">✓ verified</span>' if verifier.get("verified_at") else '<span class="badge unverified">unverified locally</span>'
-    return f"""<div class="article">
-  <h3><a href="{article_href}">{title}</a>{badge}</h3>
-  {('<div style="color:var(--muted);font-size:14px">' + subtitle + '</div>') if subtitle else ''}
-  <div class="meta">
-    {author_name} · {skill_name} ·
-    <a href="{verify_href}">校验 →</a>
-  </div>
+def _article_link(article: dict, *, base: str) -> str:
+    m = article["manifest"]
+    art = m.get("article", {})
+    skill = m.get("skill", {})
+    zone = art.get("category", "")
+    href = f"{base}{zone}/{article['slug']}/"
+    verify_href = f"{base}verify/{art.get('id', '')}/"
+    title = _h(art.get("title", article["slug"]))
+    dek = _h(art.get("subtitle", ""))
+    meta_bits = [
+        _h(_author_name(m)),
+        _h(skill.get("name", "")),
+        _date_of(manifest=m, slug=article["slug"]),
+    ]
+    meta = '<span class="sep">·</span>'.join(b for b in meta_bits if b)
+    dek_html = f'<p class="dek">{dek}</p>' if dek else ""
+    return f"""<div class="article-row">
+  <a class="article-link" href="{href}">
+    <h3>{title}</h3>
+    {dek_html}
+    <p class="meta">{meta}</p>
+  </a>
+  <a class="verify-link" href="{verify_href}">校验 →</a>
 </div>"""
 
 
+# ---------- pages ----------
+
 def write_landing(articles: dict[str, list[dict]]) -> None:
-    body_parts = [
-        "<p style='font-size:18px;color:var(--muted);margin-top:24px'>",
-        "AI 写作发布平台。每篇文章都带<strong>可机器校验的 AI 出处证明</strong>——",
-        "skill 仓库 commit、模型、输入、作者签名全可追溯。",
-        "</p>",
-    ]
+    parts: list[str] = []
+    parts.append("""<section class="hero">
+  <h1>AI 写作，公开可验证。</h1>
+  <p>每篇文章都附 <code style="font-family:var(--mono);font-size:14px;background:var(--accent-soft);padding:1px 6px;border-radius:3px">ai-audit.json</code> 出处证明：所用 skill 的公开仓库 commit、模型、输入、作者签名全部锁死，任何人可校验。</p>
+</section>""")
+
     for zone in ZONES:
-        body_parts.append(f"<h2>{html.escape(ZONE_LABELS[zone])}</h2>")
-        if not articles[zone]:
-            body_parts.append(f"<p style='color:var(--muted)'>暂无文章。<a href='{zone}/'>查看 {zone}/ →</a></p>")
-            continue
-        for a in articles[zone][:5]:
-            body_parts.append(_article_card(zone, a["slug"], a["manifest"], base_depth=0))
-    (DIST / "index.html").write_text(_shell("pai.ink — AI-written, verifiably", "\n".join(body_parts), base_depth=0))
+        key = zone["key"]
+        items = articles.get(key, [])[:5]
+        parts.append(f"""<section class="zone">
+  <div class="zone-head">
+    <h2>{_h(_zone_title(zone))}</h2>
+    <a class="more" href="{key}/">查看全部 →</a>
+  </div>""")
+        if not items:
+            parts.append('<p class="empty">暂无文章。</p>')
+        else:
+            parts.append('<ul class="articles">')
+            for a in items:
+                parts.append(f'<li>{_article_link(a, base="")}</li>')
+            parts.append('</ul>')
+        parts.append('</section>')
+
+    (DIST / "index.html").write_text(
+        _shell(title="pai.ink — AI 写作，公开可验证", body="\n".join(parts), base="")
+    )
 
 
-def write_zone_index(zone: str, items: list[dict]) -> None:
-    body = [f"<h2>{html.escape(ZONE_LABELS[zone])}</h2>"]
+def write_zone_index(zone: dict, items: list[dict]) -> None:
+    key = zone["key"]
+    body_parts = [f"""<section class="page-head">
+  <p class="eyebrow">分区 / Zone</p>
+  <h1>{_h(_zone_title(zone))}</h1>
+  <p class="lede">{_h(zone['lede'])}</p>
+</section>"""]
     if not items:
-        body.append("<p style='color:var(--muted)'>暂无文章。</p>")
-    for a in items:
-        body.append(_article_card(zone, a["slug"], a["manifest"], base_depth=1))
-    (DIST / zone).mkdir(parents=True, exist_ok=True)
-    (DIST / zone / "index.html").write_text(_shell(f"{ZONE_LABELS[zone]} — pai.ink", "\n".join(body), base_depth=1))
+        body_parts.append('<p class="empty">暂无文章。</p>')
+    else:
+        body_parts.append('<ul class="articles">')
+        for a in items:
+            body_parts.append(f'<li>{_article_link(a, base="../")}</li>')
+        body_parts.append('</ul>')
+    out = DIST / key
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "index.html").write_text(
+        _shell(title=f"{_zone_title(zone)} — pai.ink",
+               body="\n".join(body_parts), base="../", active=key)
+    )
 
 
 def write_verify_page(zone: str, slug: str, manifest: dict) -> None:
-    art_id = manifest.get("article", {}).get("id")
-    if not art_id:
-        return
     art = manifest.get("article", {})
     skill = manifest.get("skill", {})
     gen = manifest.get("generation", {})
     author = manifest.get("author", {})
     verifier = manifest.get("verifier") or {}
-    passed = verifier.get("checks_passed") or []
-    warned = verifier.get("checks_warned") or []
+    art_id = art.get("id")
+    if not art_id:
+        return
     has_sig = "signature" in manifest
+    is_verified = bool(verifier.get("verified_at")) and not verifier.get("checks_warned")
 
-    rows = []
-    rows.append(("文章 / Article", html.escape(art.get("title", ""))))
-    rows.append(("分区 / Zone", html.escape(art.get("category", ""))))
-    rows.append(("内容哈希 / SHA-256", f"<code>{art.get('content_sha256', '')}</code>"))
-    rows.append(("Skill 仓库", f'<a href="{html.escape(skill.get("repo_url", ""))}">{html.escape(skill.get("repo_url", ""))}</a>'))
-    rows.append(("Skill commit", f"<code>{html.escape(skill.get('repo_commit', ''))}</code>"))
-    rows.append(("模型", html.escape(gen.get("model", ""))))
-    rows.append(("Harness", html.escape(gen.get("harness", ""))))
-    rows.append(("生成开始", html.escape(gen.get("started_at", ""))))
-    rows.append(("生成结束", html.escape(gen.get("finished_at", ""))))
-    rows.append(("作者 GitHub", html.escape(author.get("github", ""))))
+    if is_verified:
+        status_class = "ok"
+        status_text = "已校验 / Verified"
+        sub = f"CI 在 {_h(verifier.get('verified_at', ''))} 完成全部检查。"
+    elif verifier.get("verified_at"):
+        status_class = "warn"
+        status_text = "部分通过 / Partially verified"
+        sub = "存在非阻断警告，详见下方完整 manifest。"
+    else:
+        status_class = "warn"
+        status_text = "未携带 CI 校验戳 / Not CI-verified"
+        sub = "本文尚未经过 pai 的 CI 校验。可下载 manifest 自行验证。"
+
+    repo_url = skill.get("repo_url", "")
+    repo_commit = skill.get("repo_commit", "")
+    repo_link = f'<a href="{_h(repo_url)}">{_h(repo_url)}</a>' if repo_url else "—"
+    short_commit = (repo_commit[:8] + "…") if len(repo_commit) > 12 else repo_commit
+    if repo_url and repo_commit:
+        commit_link = f'<a href="{_h(repo_url)}/commit/{_h(repo_commit)}"><code>{_h(short_commit)}</code></a>'
+    else:
+        commit_link = f"<code>{_h(short_commit)}</code>"
+
+    article_href = f"../../{zone}/{slug}/"
+    manifest_href = f"../../{zone}/{slug}/ai-audit.json"
+    content_hash = art.get("content_sha256", "")
+    short_hash = content_hash[:16] + "…" if len(content_hash) > 20 else content_hash
+
+    rows = [
+        ("文章 / Article", f'<a href="{article_href}">{_h(art.get("title", ""))}</a>'),
+        ("分区 / Zone", _h(zone)),
+        ("作者 / Author", _h(_author_name(manifest))),
+        ("Skill", _h(skill.get("name", "")) or "—"),
+        ("Skill 仓库", repo_link),
+        ("Skill commit", commit_link),
+        ("模型 / Model", f'<code>{_h(gen.get("model", ""))}</code>'),
+        ("Harness", _h(gen.get("harness", "")) or "—"),
+        ("生成时间", f'{_h(gen.get("started_at", ""))} → {_h(gen.get("finished_at", ""))}'),
+        ("内容哈希", f'<code title="{_h(content_hash)}">{_h(short_hash)}</code>'),
+        ("ed25519 签名", "存在" if has_sig else "—"),
+    ]
     if author.get("wallet"):
-        rows.append(("钱包", html.escape(author["wallet"])))
-    rows.append(("ed25519 签名", "✓ 存在" if has_sig else "—"))
+        rows.append(("钱包", f'<code>{_h(author["wallet"])}</code>'))
 
-    body = [f'<h2>校验 / Verify <code>{html.escape(art_id)}</code></h2>']
-    if passed:
-        body.append('<p>CI 校验通过：</p><ul>')
-        for c in passed:
-            body.append(f'<li class="badge ok">✓ {html.escape(c)}</li> ')
-        body.append('</ul>')
-    if warned:
-        body.append('<p>警告（不阻断）：</p><ul>')
-        for w in warned:
-            body.append(f'<li class="badge warn">⚠ {html.escape(w)}</li> ')
-        body.append('</ul>')
-    if not verifier:
-        body.append('<p class="badge unverified">⚠ 本文未携带 CI 验证戳。可下载 <a href="ai-audit.json">ai-audit.json</a> 自行校验。</p>')
-    body.append('<table style="margin-top:24px;border-collapse:collapse;width:100%">')
+    raw_json = html.escape(json.dumps(manifest, indent=2, ensure_ascii=False))
+
+    body = [f"""<section class="verify-head">
+  <p class="eyebrow">校验 / Provenance</p>
+  <h1 class="status {status_class}">{_h(status_text)}</h1>
+  <p class="sub">{sub}</p>
+</section>
+
+<dl class="manifest">"""]
     for k, v in rows:
-        body.append(f'<tr><td style="padding:6px 12px;border-bottom:1px solid var(--border);color:var(--muted);width:160px">{k}</td><td style="padding:6px 12px;border-bottom:1px solid var(--border);word-break:break-all">{v}</td></tr>')
-    body.append('</table>')
-    body.append(f'<p style="margin-top:24px"><a href="../../{zone}/{slug}/">→ 阅读文章</a> · <a href="../../{zone}/{slug}/ai-audit.json">下载 manifest</a></p>')
+        body.append(f'  <dt>{_h(k)}</dt><dd>{v}</dd>')
+    body.append("</dl>")
+
+    body.append(f'<p style="font-size:14px;margin-top:24px"><a href="{article_href}">→ 阅读文章</a> · <a href="{manifest_href}">下载 ai-audit.json</a></p>')
+
+    body.append(f"""<details class="raw">
+  <summary>完整 manifest (raw)</summary>
+  <pre>{raw_json}</pre>
+</details>""")
+
     out = DIST / "verify" / art_id
     out.mkdir(parents=True, exist_ok=True)
-    (out / "index.html").write_text(_shell(f"校验 {art_id[:8]} — pai.ink", "\n".join(body), base_depth=2))
+    (out / "index.html").write_text(
+        _shell(title=f"校验 {art_id[:8]} — pai.ink", body="\n".join(body), base="../../")
+    )
 
 
 def write_about() -> None:
-    body = """
-<h2>关于 pai.ink</h2>
-<p>pai 是一个用 AI skill 写作并对外发布的平台。和普通博客最大的差别：</p>
-<ul>
-  <li>每篇文章都附一个 <code>ai-audit.json</code>，把"是用哪个 skill 仓库的哪个 commit、哪个模型、哪些输入"全部锁死。</li>
-  <li>CI 会做 9 项检查（内容哈希、skill commit 是否存在、作者签名等），失败直接拒绝合并。</li>
-  <li>金融区放公司研究/行业分析，Web3 区放协议解读/链上分析。后续会加更多分区。</li>
-</ul>
-<h2>怎么投稿</h2>
-<ol>
-  <li>用你的 AI skill（公开仓库）生成 HTML 文章。</li>
-  <li>跑 <code>tools/emit_audit.py</code> 生成 manifest，<code>tools/sign_audit.py sign</code> 用 ed25519 签名。</li>
-  <li>Fork 仓库 → 放到 <code>content/&lt;zone&gt;/&lt;slug&gt;/</code> → 开 PR。</li>
-  <li>CI 绿了机器人合并。</li>
-</ol>
-<p>标准开源在 <a href="https://pai.ink/schemas/ai-audit/v1.json">ai-audit/v1.json</a>（CC0）。任何站点都可以采用同一份 schema。</p>
-"""
-    (DIST / "about.html").write_text(_shell("关于 — pai.ink", body, base_depth=0))
+    body = """<section class="page-head">
+  <p class="eyebrow">关于 / About</p>
+  <h1>关于 pai.ink</h1>
+</section>
+<div class="prose">
+  <p>pai.ink 是一个用 AI skill 写作的发布平台。和普通博客最大的差别：每篇文章都带一份 <code>ai-audit.json</code>，把"是用哪个 skill 仓库的哪个 commit、哪个模型、哪些输入"全部锁死。CI 会做九项校验，失败就拒绝合并。</p>
+
+  <h2>为什么需要这个</h2>
+  <p>当所有内容都可能由 AI 生成时，"作者承诺这是 AI 写的"远远不够。pai 提供的是<strong>机器可验证的出处</strong>——任何人都能拿着 manifest 重跑一遍 skill，或者验证签名，或者比对哈希。</p>
+
+  <h2>怎么投稿</h2>
+  <ol>
+    <li>用你的 AI skill（必须是<strong>公开</strong>仓库）生成 HTML 文章。</li>
+    <li>跑 <code>tools/emit_audit.py</code> 生成 manifest，<code>tools/sign_audit.py sign</code> 加 ed25519 签名。</li>
+    <li>Fork <a href="https://github.com/pppop00/pai.ink">仓库</a> → 放到 <code>content/&lt;zone&gt;/&lt;slug&gt;/</code> → 开 PR。</li>
+    <li>CI 绿了就自动合并、上线。</li>
+  </ol>
+
+  <h2>分区</h2>
+  <p>目前两个：<strong>金融</strong>（公司研究/行业分析/财报）与 <strong>Web3</strong>（协议/链上/机制）。后续按需扩展，只需编辑 <code>config/categories.yaml</code>。</p>
+
+  <h2>标准</h2>
+  <p>provenance 标准开源在 <a href="https://pai.ink/schemas/ai-audit/v1.json">ai-audit/v1.json</a>（CC0 协议）。任何站点都可以采用同一份 schema——目的不是 pai 独占的徽章，而是"AI 写的"这件事可以在整个互联网上被验证。</p>
+</div>"""
+    (DIST / "about.html").write_text(
+        _shell(title="关于 — pai.ink", body=body, base="")
+    )
 
 
 def copy_articles(articles: dict[str, list[dict]]) -> None:
-    for zone, items in articles.items():
+    for zone_key, items in articles.items():
         for a in items:
-            src = a["dir"]
-            dst = DIST / zone / a["slug"]
+            dst = DIST / zone_key / a["slug"]
             if dst.exists():
                 shutil.rmtree(dst)
-            shutil.copytree(src, dst)
+            shutil.copytree(a["dir"], dst)
 
 
 def main() -> None:
     if DIST.exists():
         shutil.rmtree(DIST)
     DIST.mkdir(parents=True)
-    (DIST / "style.css").write_text(CSS)
+
+    # Static assets
+    shutil.copy(SITE / "style.css", DIST / "style.css")
+    shutil.copy(SITE / "favicon.svg", DIST / "favicon.svg")
 
     articles = collect_articles()
-    n = sum(len(v) for v in articles.values())
-    print(f"discovered {n} articles across {len([z for z, v in articles.items() if v])} zones")
+    total = sum(len(v) for v in articles.values())
+    print(f"discovered {total} articles across {sum(1 for v in articles.values() if v)} zones")
 
     copy_articles(articles)
     write_landing(articles)
     for zone in ZONES:
-        write_zone_index(zone, articles.get(zone, []))
-        for a in articles.get(zone, []):
-            write_verify_page(zone, a["slug"], a["manifest"])
+        write_zone_index(zone, articles.get(zone["key"], []))
+        for a in articles.get(zone["key"], []):
+            write_verify_page(zone["key"], a["slug"], a["manifest"])
     write_about()
+
     print(f"built {DIST.relative_to(ROOT)}/")
 
 
