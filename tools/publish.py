@@ -131,7 +131,7 @@ def _detect_skill_git(skill_output_dir: Path) -> tuple[str, str]:
 
 # ---------- main flow ----------
 
-def copy_assets(skill_dir: Path, html_src: Path, target_dir: Path) -> list[str]:
+def copy_assets(skill_dir: Path, html_src: Path, target_dir: Path, *, include_cards: bool = True) -> list[str]:
     """Copy article HTML + sibling assets. Returns list of relpaths copied."""
     copied: list[str] = []
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -140,7 +140,7 @@ def copy_assets(skill_dir: Path, html_src: Path, target_dir: Path) -> list[str]:
 
     # Cards (PNG/JPG/SVG/WebP) from cards/ subdir of skill output
     cards = skill_dir / "cards"
-    if cards.is_dir():
+    if include_cards and cards.is_dir():
         ALLOWED = {".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif"}
         target_cards = target_dir / "cards"
         for f in sorted(cards.iterdir()):
@@ -270,6 +270,8 @@ def main() -> int:
     ap.add_argument("--no-sign", action="store_true")
     ap.add_argument("--no-commit", action="store_true")
     ap.add_argument("--no-push", action="store_true")
+    ap.add_argument("--no-cards", action="store_true",
+                    help="Publish HTML only; skip the cards/ subdir")
     ap.add_argument("--force", action="store_true",
                     help="Overwrite if target slug already exists")
     ap.add_argument("--dry-run", action="store_true",
@@ -326,7 +328,7 @@ def main() -> int:
     print("\ncopying assets:")
     if target_dir.exists():
         shutil.rmtree(target_dir)
-    copied = copy_assets(skill_dir, html_src, target_dir)
+    copied = copy_assets(skill_dir, html_src, target_dir, include_cards=not args.no_cards)
     for c in copied:
         print(f"  + {c}")
 
