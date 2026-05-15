@@ -19,7 +19,7 @@ that 4EVERLAND post-processes a `_headers` file.
 
 Choice: Option B — inject `<meta http-equiv="Content-Security-Policy" ...>`
 into the `<head>` of every pai-chrome page (landing, zone indexes, verify,
-discuss, about, agreement, submit). The CSP is NOT injected into the
+about, agreement, submit). The CSP is NOT injected into the
 self-contained article HTMLs copied verbatim from `content/<zone>/<slug>/`,
 both because (a) CLAUDE.md forbids modifying article HTML (would invalidate
 content_sha256) and (b) anamnesis articles load d3 / chart.js from
@@ -60,18 +60,18 @@ DIST = SITE / "dist"
 AGREEMENT_V1_SHA256 = "d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807"
 
 # Content-Security-Policy applied to pai-chrome pages via <meta>. Allows
-# inline scripts/styles (the discuss page has an inline tab toggle, the
-# global chrome has an inline cursor script, anamnesis articles have inline
-# Sankey/waterfall scripts but the CSP is not injected into article HTML).
-# `connect-src` includes api.github.com for the future submit form's PAT
-# validation call. `data:` covers chart libraries that embed images as URIs.
+# inline scripts/styles (the submit form has inline JS, the global chrome
+# has an inline cursor script, anamnesis articles have inline Sankey/waterfall
+# scripts but the CSP is not injected into article HTML).
+# `connect-src` allows api.paiink.com for the submit form fetch.
+# `data:` covers chart libraries that embed images as URIs.
 CSP_POLICY = (
     "default-src 'self'; "
     "script-src 'self' 'unsafe-inline'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data:; "
     "font-src 'self' data:; "
-    "connect-src 'self' https://api.github.com; "
+    "connect-src 'self' https://api.paiink.com; "
     "object-src 'none'; "
     "base-uri 'self'; "
     "frame-ancestors 'none'"
@@ -250,7 +250,6 @@ def _article_link(article: dict, *, base: str) -> str:
     art_id = art.get("id", "")
     href = f"{base}{zone}/{article['slug']}/"
     verify_href = f"{base}verify/{art_id}/"
-    discuss_href = f"{base}discuss/{art_id}/"
     title = _h(art.get("title", article["slug"]))
     dek = _h(art.get("subtitle", ""))
     meta_bits = [
@@ -268,7 +267,6 @@ def _article_link(article: dict, *, base: str) -> str:
   </a>
   <div class="article-side">
     <a class="side-link" href="{verify_href}">校验 →</a>
-    <a class="side-link" href="{discuss_href}">讨论 →</a>
   </div>
 </div>"""
 
@@ -398,8 +396,7 @@ def write_verify_page(zone: str, slug: str, manifest: dict) -> None:
         body.append(f'  <dt>{_h(k)}</dt><dd>{v}</dd>')
     body.append("</dl>")
 
-    discuss_href = f"../../discuss/{art_id}/"
-    body.append(f'<p style="font-size:14px;margin-top:24px"><a href="{article_href}">→ 阅读文章</a> · <a href="{discuss_href}">参与讨论 →</a> · <a href="{manifest_href}">下载 ai-audit.json</a></p>')
+    body.append(f'<p style="font-size:14px;margin-top:24px"><a href="{article_href}">→ 阅读文章</a> · <a href="{manifest_href}">下载 ai-audit.json</a></p>')
 
     body.append(f"""<details class="raw">
   <summary>完整 manifest (raw)</summary>
@@ -412,101 +409,6 @@ def write_verify_page(zone: str, slug: str, manifest: dict) -> None:
         _shell(title=f"校验 {art_id[:8]} — pai.ink", body="\n".join(body), base="../../")
     )
 
-
-def write_discuss_page(zone: str, slug: str, manifest: dict) -> None:
-    """Companion page for comments / likes / bookmarks. Article HTML is never
-    touched (preserves content_sha256). All interactions live here, keyed by
-    article id. Backend not yet wired — this is UI shell only."""
-    art = manifest.get("article", {})
-    skill = manifest.get("skill", {})
-    art_id = art.get("id")
-    if not art_id:
-        return
-
-    article_href = f"../../{zone}/{slug}/"
-    verify_href = f"../../verify/{art_id}/"
-    title = _h(art.get("title", slug))
-    subtitle = _h(art.get("subtitle", ""))
-    author_name = _h(_author_name(manifest))
-    skill_name = _h(skill.get("name", ""))
-    date = _date_of(manifest=manifest, slug=slug)
-    meta_bits = [b for b in (author_name, skill_name, date) if b]
-    meta = '<span class="sep">·</span>'.join(meta_bits)
-    dek_html = f'<p class="discuss-dek">{subtitle}</p>' if subtitle else ''
-
-    body = f"""<section class="discuss-head">
-  <p class="eyebrow">DISCUSSION · 讨论</p>
-  <h1>{title}</h1>
-  {dek_html}
-  <p class="discuss-meta">{meta}</p>
-  <div class="discuss-back">
-    <a href="{article_href}">← 阅读文章</a>
-    <span class="sep">·</span>
-    <a href="{verify_href}">校验 →</a>
-  </div>
-</section>
-
-<section class="actions">
-  <button class="action-btn" data-action="like" disabled>
-    <span class="action-icon" aria-hidden="true">♥</span>
-    <span class="action-label">点赞</span>
-    <span class="action-count">—</span>
-  </button>
-  <button class="action-btn" data-action="bookmark" disabled>
-    <span class="action-icon" aria-hidden="true">☆</span>
-    <span class="action-label">收藏</span>
-  </button>
-  <p class="action-note">登录后即可点赞与收藏</p>
-</section>
-
-<section class="auth">
-  <div class="auth-tabs" role="tablist">
-    <button class="auth-tab active" data-tab="login" role="tab" aria-selected="true">登录</button>
-    <button class="auth-tab" data-tab="register" role="tab" aria-selected="false">注册</button>
-  </div>
-
-  <form class="auth-form" data-form="login" autocomplete="on">
-    <label>邮箱<input type="email" name="email" required autocomplete="email"></label>
-    <label>密码<input type="password" name="password" required minlength="8" autocomplete="current-password"></label>
-    <button type="submit" class="auth-submit" disabled>登录（后端未连通）</button>
-  </form>
-
-  <form class="auth-form hidden" data-form="register" autocomplete="on">
-    <label>邮箱<input type="email" name="email" required autocomplete="email"></label>
-    <label>用户名<input type="text" name="username" required minlength="2" maxlength="32" pattern="[A-Za-z0-9_\\-]+" autocomplete="username"></label>
-    <label>密码<input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
-    <button type="submit" class="auth-submit" disabled>注册（后端未连通）</button>
-  </form>
-
-  <p class="auth-note">⚠ 后端尚未连通 — 这是 UI 预览，表单提交不会生效。下一步会接 Cloudflare Worker + D1（注册/登录、点赞计数、评论存储）。</p>
-</section>
-
-<section class="comments">
-  <h2>评论 <span class="count">(0)</span></h2>
-  <p class="empty">暂无评论。等后端上线后，登录用户可发表第一条。</p>
-</section>
-
-<script>
-(function () {{
-  const tabs = document.querySelectorAll('.auth-tab');
-  const forms = document.querySelectorAll('.auth-form');
-  tabs.forEach(t => t.addEventListener('click', () => {{
-    const which = t.dataset.tab;
-    tabs.forEach(x => {{
-      const active = x.dataset.tab === which;
-      x.classList.toggle('active', active);
-      x.setAttribute('aria-selected', active ? 'true' : 'false');
-    }}));
-    forms.forEach(f => f.classList.toggle('hidden', f.dataset.form !== which));
-  }}));
-}})();
-</script>"""
-
-    out = DIST / "discuss" / art_id
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "index.html").write_text(
-        _shell(title=f"讨论 — {art.get('title', '')}", body=body, base="../../")
-    )
 
 
 def write_about() -> None:
@@ -774,7 +676,6 @@ def main() -> None:
         write_zone_index(zone, articles.get(zone["key"], []))
         for a in articles.get(zone["key"], []):
             write_verify_page(zone["key"], a["slug"], a["manifest"])
-            write_discuss_page(zone["key"], a["slug"], a["manifest"])
     write_about()
     write_agreement()
     write_submit()
