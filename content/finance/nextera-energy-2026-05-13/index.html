@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NextEra Energy（耐克斯特拉能源）（NEE）— 权益研究报告 | 2026-05-13</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@500;600;700&family=Source+Serif+4:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ============================================================
+   CANONICAL CSS — DO NOT MODIFY ANY RULE IN THIS BLOCK
+   ============================================================ */
+:root {
+  --primary:        #1a2c4e;
+  --primary-light:  #2d4570;
+  --accent-green:   #2e7d4f;
+  --accent-red:     #a83232;
+  --accent-amber:   #b8842a;
+  --accent-blue:    #355a8a;
+  --bg:             #f5f3ee;
+  --bg-card:        #ffffff;
+  --bg-header:      #1a2c4e;
+  --text-primary:   #1a1a1a;
+  --text-secondary: #3a3a3a;
+  --text-muted:     #6e6e6e;
+  --border:         #cfc9bd;
+  --shadow:         0 1px 2px rgba(26,44,78,0.06);
+  --shadow-hover:   0 2px 6px rgba(26,44,78,0.10);
+  --tab-active:     #1a2c4e;
+  --kpi-up-bg:      #eef3ec;
+  --kpi-down-bg:    #f5ebea;
+  --serif:          'Source Serif 4', 'Noto Serif SC', Georgia, 'Times New Roman', serif;
+}
+[data-theme="dark"] {
+  --bg:             #0e1620;
+  --bg-card:        #18222e;
+  --bg-header:      #0a121c;
+  --text-primary:   #e8e4dc;
+  --text-secondary: #b8b3a8;
+  --text-muted:     #7c7a72;
+  --border:         #2c3a4d;
+  --shadow:         0 1px 2px rgba(0,0,0,0.30);
+  --shadow-hover:   0 2px 6px rgba(0,0,0,0.50);
+  --tab-active:     #6ea3d8;
+  --kpi-up-bg:      #14241a;
+  --kpi-down-bg:    #2a1717;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.75;
+  transition: background 0.3s, color 0.3s;
+}
+/* --- Header --- */
+.report-header {
+  background: var(--bg-header);
+  color: #fff;
+  padding: 32px 48px 0;
+  border-bottom: 3px solid var(--accent-amber);
+}
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  padding-bottom: 22px;
+}
+.header-left { flex: 1; }
+.company-exchange-badge {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 1px;
+  padding: 2px 9px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #d8d2c1;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.company-name-cn {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.18;
+  margin-bottom: 4px;
+  color: #ffffff;
+}
+.company-name-en {
+  font-size: 12px;
+  color: #b9b3a4;
+  letter-spacing: 0.06em;
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.theme-toggle {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.35);
+  color: #ebe6d8;
+  padding: 4px 12px;
+  border-radius: 1px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+}
+.rating-badge {
+  padding: 5px 16px;
+  border-radius: 1px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+.rating-badge.overweight  { background: var(--accent-green); }
+.rating-badge.neutral     { background: var(--accent-amber); }
+.rating-badge.underweight { background: var(--accent-red);   }
+.header-meta {
+  background: rgba(0,0,0,0.22);
+  padding: 9px 48px;
+  display: flex;
+  gap: 24px;
+  font-size: 11px;
+  color: #c8c2b1;
+  letter-spacing: 0.02em;
+}
+.header-meta span::before { content: "▪ "; color: var(--accent-amber); }
+/* --- Layout --- */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.section {
+  background: var(--bg-card);
+  border-radius: 2px;
+  padding: 26px 32px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.section-title {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+  margin-bottom: 22px;
+  letter-spacing: 0.01em;
+  position: relative;
+}
+.section-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 48px;
+  height: 2px;
+  background: var(--accent-amber);
+}
+[data-theme="dark"] .section-title { color: var(--text-primary); border-bottom-color: var(--border); }
+/* --- Summary section --- */
+.summary-para { font-size: 13.5px; line-height: 1.9; margin-bottom: 14px; color: var(--text-secondary); text-align: justify; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 18px; }
+.highlights-box h4, .risks-box h4 {
+  font-family: var(--serif);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding: 0 0 6px 0;
+  border-radius: 0;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+.highlights-box h4 { color: var(--accent-green); background: transparent; border-bottom-color: var(--accent-green); }
+.risks-box h4      { color: var(--accent-red);   background: transparent; border-bottom-color: var(--accent-red);   }
+[data-theme="dark"] .highlights-box h4 { background: transparent; }
+[data-theme="dark"] .risks-box h4      { background: transparent; }
+.bullet-list { list-style: none; }
+.bullet-list li {
+  font-size: 13px;
+  line-height: 1.75;
+  padding: 7px 0 7px 16px;
+  position: relative;
+  border-bottom: 1px dotted var(--border);
+  color: var(--text-secondary);
+}
+.bullet-list li:last-child { border-bottom: none; }
+.bullet-list li::before {
+  position: absolute;
+  left: 0;
+  top: 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.highlights-box .bullet-list li::before { content: "—"; color: var(--accent-green); }
+.risks-box      .bullet-list li::before { content: "—"; color: var(--accent-red);   }
+.thesis-box {
+  background: var(--primary);
+  color: #f0ece1;
+  padding: 16px 22px 16px 18px;
+  border-radius: 1px;
+  border-left: 3px solid var(--accent-amber);
+  font-size: 13px;
+  line-height: 1.9;
+  margin-top: 22px;
+}
+.thesis-box strong { color: var(--accent-amber); font-family: var(--serif); font-weight: 600; letter-spacing: 0.06em; font-size: 12px; }
+/* --- KPI Cards --- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  border-radius: 2px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  box-shadow: none;
+  background: var(--bg-card);
+  border-left: 3px solid var(--border);
+  transition: box-shadow 0.2s;
+}
+.kpi-card:hover { box-shadow: var(--shadow-hover); }
+.kpi-card.up   { border-left-color: var(--accent-green); background: var(--kpi-up-bg); }
+.kpi-card.down { border-left-color: var(--accent-red);   background: var(--kpi-down-bg); }
+/* neutral-kpi：语义上区别于 up（勿误用绿色暗示「已健康」），视觉上与亏损卡一致（红边+浅红底），避免琥珀色与相邻亏损卡割裂 */
+.kpi-card.neutral-kpi { border-left-color: var(--accent-red); background: var(--kpi-down-bg); }
+.kpi-label  { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; margin-bottom: 8px; }
+.kpi-value  { font-family: var(--serif); font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; letter-spacing: -0.005em; font-variant-numeric: tabular-nums; }
+.kpi-change { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi-change.up   { color: var(--accent-green); }
+.kpi-change.down { color: var(--accent-red);   }
+.kpi-change.neutral-kpi { color: var(--text-secondary); }
+.kpi-sub    { font-size: 11px; color: var(--text-muted); margin-top: 4px; letter-spacing: 0.04em; }
+/* --- Metrics Table --- */
+.metrics-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 22px; font-variant-numeric: tabular-nums; }
+.metrics-table th {
+  background: var(--primary);
+  color: #f0ece1;
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+[data-theme="dark"] .metrics-table th { background: var(--primary-light, #1a3a6e); }
+.metrics-table td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+.metrics-table tr:last-child td { border-bottom: none; }
+.metrics-table tr:hover td { background: rgba(26,44,78,0.04); }
+[data-theme="dark"] .metrics-table tr:hover td { background: rgba(255,255,255,0.04); }
+.metric-up   { color: var(--accent-green) !important; font-weight: 600; }
+.metric-down { color: var(--accent-red)   !important; font-weight: 600; }
+/* --- Trend Cards --- */
+.trend-cards { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.trend-card {
+  border-left: 3px solid var(--accent-green);
+  padding: 11px 16px;
+  border-radius: 0 1px 1px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.trend-card.up   { border-left-color: var(--accent-green); }
+.trend-card.down { border-left-color: var(--accent-green); }
+.trend-card.trend-geo { border-left-color: var(--accent-green); }
+.trend-card-label { font-family: var(--serif); font-weight: 600; font-size: 13px; margin-bottom: 5px; color: var(--text-primary); letter-spacing: 0.02em; }
+.trend-card-text  { font-size: 13px; color: var(--text-secondary); line-height: 1.85; }
+/* --- Tabs --- */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 22px;
+  gap: 0;
+}
+.tab {
+  padding: 8px 18px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.2s;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+.tab.active { color: var(--tab-active); border-bottom-color: var(--accent-amber); font-weight: 600; }
+.tab-panel  { display: none; }
+.tab-panel.active { display: block; }
+/* --- Waterfall Chart Container --- */
+.waterfall-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+#chart-waterfall {
+  width: 100%;
+  height: 320px;
+  min-width: 600px;
+  display: block;
+}
+.waterfall-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 1px;
+  border: 1px solid var(--border);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+/* --- Waterfall Factor Table --- */
+.factor-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 18px; font-variant-numeric: tabular-nums; }
+.factor-table th {
+  background: var(--primary);
+  color: #f0ece1;
+  padding: 9px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+[data-theme="dark"] .factor-table th { background: var(--primary-light, #1a3a6e); }
+.factor-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+.factor-table tr:last-child td { border-bottom: none; }
+/* --- Sankey Container --- */
+.sankey-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+#chart-sankey-actual, #chart-sankey-forecast {
+  width: 100%;
+  height: 380px;
+  min-width: 600px;
+  display: block;
+}
+.sankey-note { font-size: 12.5px; color: var(--text-secondary); line-height: 1.75; margin-top: 12px; }
+/* --- Porter Radar Container --- */
+.porter-wrap {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+#chart-radar-company,
+#chart-radar-industry,
+#chart-radar-forward {
+  width: 300px !important;
+  height: 300px !important;
+  display: block;
+}
+.porter-scores { list-style: none; margin-bottom: 18px; }
+.porter-scores li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dotted var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.porter-scores li:last-child { border-bottom: none; }
+.score-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 1px;
+  color: #fff;
+  text-align: center;
+  line-height: 26px;
+  font-weight: 700;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.score-dot.s1, .score-dot.s2 { background: var(--accent-green); }
+.score-dot.s3               { background: var(--accent-amber); }
+.score-dot.s4, .score-dot.s5 { background: var(--accent-red); }
+.porter-text { font-size: 13px; line-height: 1.9; color: var(--text-secondary); word-break: break-word; }
+/* --- Appendix --- */
+.appendix-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 18px; }
+.appendix-table th {
+  background: var(--primary);
+  color: #f0ece1;
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+[data-theme="dark"] .appendix-table th { background: var(--primary-light, #1a3a6e); }
+.appendix-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); vertical-align: top; word-break: break-word; }
+.appendix-table tr:last-child td { border-bottom: none; }
+.disclaimer-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--text-muted);
+  border-radius: 1px;
+  padding: 14px 18px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.85;
+  margin-top: 18px;
+  letter-spacing: 0.01em;
+}
+.methodology-box {
+  background: var(--bg);
+  border-left: 3px solid var(--accent-blue);
+  padding: 13px 18px;
+  border-radius: 0 1px 1px 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.85;
+  margin-bottom: 16px;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.macro-factor-commentary {
+  margin-top: 20px;
+  border-left: 3px solid var(--accent-green);
+  padding: 13px 18px;
+  background: var(--bg);
+  border-radius: 0 1px 1px 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.9;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.macro-factor-commentary-label {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: 0.06em;
+}
+.macro-factor-commentary-body p { margin: 0 0 0.65em 0; }
+.macro-factor-commentary-body p:last-child { margin-bottom: 0; }
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .two-col  { grid-template-columns: 1fr; }
+  .porter-wrap { grid-template-columns: 1fr; }
+  #chart-radar-company,
+  #chart-radar-industry,
+  #chart-radar-forward { width: 100% !important; height: 260px !important; }
+}
+@media (max-width: 600px) {
+  .report-header { padding: 20px 20px 0; }
+  .header-meta   { padding: 8px 20px; flex-wrap: wrap; gap: 10px; }
+  .container     { padding: 16px 12px; }
+  .section       { padding: 20px 16px; }
+  .kpi-grid      { grid-template-columns: 1fr 1fr; }
+  .header-main   { flex-direction: column; }
+}
+/* ============================================================ END CANONICAL CSS ============================================================ */
+</style>
+</head>
+<body>
+
+<!-- ========== HEADER ========== -->
+<div class="report-header">
+  <div class="header-main">
+    <div class="header-left">
+      <div class="company-exchange-badge">NYSE · 公用事业 / 电力与可再生能源基础设施</div>
+      <div class="company-name-cn">NextEra Energy（耐克斯特拉能源）</div>
+      <div class="company-name-en">NextEra Energy, Inc. · NEE · NEE</div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" onclick="toggleTheme()">☀ / ☾ 切换主题</button>
+      <!-- rating-badge class must be one of: overweight / neutral / underweight -->
+      <div class="rating-badge hold">持有（偏积极）</div>
+    </div>
+  </div>
+  <div class="header-meta">
+    <span>2026-05-13</span>
+    <span>数据来源：SEC EDGAR；NextEra FY2025/Q1 2026官方财报；公开市场数据</span>
+    <span>由 Equity Research Skill 生成</span>
+  </div>
+</div>
+<!-- ========== END HEADER ========== -->
+
+<div class="container">
+
+  <!-- ===== SECTION 1: 投资摘要 ===== -->
+  <div class="section" id="section-summary">
+    <div class="section-title">一、投资摘要</div>
+
+    <!-- 4段投资摘要，每段160-200字；第2段必须体现 edge_insights.json 的非共识洞察 -->
+    <p class="summary-para">NextEra Energy是北美最大的电力与能源基础设施公司之一，核心由佛罗里达受监管公用事业FPL和可再生能源/储能平台NEER构成。FY2025公司收入274.12亿美元、同比+10.7%，归母净利68.35亿美元、同比-1.6%，调整EPS 3.71美元、同比+8.2%。FPL提供稳定监管资产增长，NEER则贡献长期合同式清洁能源项目 backlog。</p>
+    <p class="summary-para">这家公司最重要的投资判断在于：它不是单纯“绿色电力概念股”，而是一个把受监管电网资产、可再生开发能力和资本市场融资能力绑定在一起的复合体。FY2025 FPL收入182.62亿美元，NEER收入87.60亿美元；前者提供现金流和监管可见度，后者承担更高成长和更高执行风险。</p>
+    <p class="summary-para">Q1 2026进一步验证需求韧性：收入67.01亿美元、调整EPS 1.09美元，NEER单季新增4GW项目，使backlog达到约33GW。管理层维持2026年调整EPS 3.92-4.02美元，并继续以2025年3.71美元为基数追求2032年前8%+调整EPS复合增长。增长可见度强，但估值已反映较多确定性。</p>
+    <!-- 第4段：行业内份额/细分赛道/口碑与认可度/主要运营地与收入来源地（160-200字）；见 news_intel industry_position + financial_analysis summary_para_4 -->
+    <p class="summary-para">主要风险在资本端而非订单端：FY2025经营现金流为124.85亿美元，但项目和电网资本投入约246亿美元，自由现金流约-121亿美元；高利率、供应链瓶颈、互联排队、监管回收延迟和极端天气都可能压缩股东回报。若利率下行和数据中心/公用事业电力需求延续，NextEra仍是高质量复利资产；若资金成本重新上行，估值弹性会受限。</p>
+
+    <div class="two-col">
+      <div class="highlights-box">
+        <h4>核心亮点</h4>
+        <ul class="bullet-list">
+          <!-- 填入 3-5 条，每条 <li>{{内容}}</li> -->
+          <li>Q1 2026调整EPS 1.09美元，同比+10.1%，管理层维持2026年3.92-4.02美元指引并瞄准高端</li>
+<li>NEER backlog达到约33GW，单季新增4GW，其中储能新增1.3GW，需求端仍强</li>
+<li>FPL监管资本同比+8.8%，过去12个月新增近10万客户，佛罗里达增长仍是稳定底盘</li>
+<li>FY2025调整EPS 3.71美元、同比+8.2%，支撑2032年前8%+复合增长叙事</li>
+        </ul>
+      </div>
+      <div class="risks-box">
+        <h4>主要风险</h4>
+        <ul class="bullet-list">
+          <!-- 填入 3-5 条，每条 <li>{{内容}}</li> -->
+          <li>资本强度高：FY2025经营现金流124.85亿美元，但主要资本投入约246.06亿美元，自由现金流约-121.21亿美元</li>
+<li>利率与融资成本敏感：长期项目和公用事业估值对利率上行高度敏感</li>
+<li>并网、许可、设备和EPC劳动力瓶颈可能推迟NEER backlog转化</li>
+<li>监管回收和极端天气风险可能影响FPL现金流时点和客户账单承受度</li>
+<li>约24倍市盈率已隐含较强执行确定性，季度失误会压缩估值</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="thesis-box">
+      <strong>投资逻辑：</strong>维持“持有/偏积极”判断：NextEra拥有稀缺的FPL监管资产与NEER可再生开发平台，Q1 2026 backlog、客户增长和调整EPS均支持长期8%+成长叙事。但约24倍市盈率、负自由现金流和持续外部融资需求要求投资者对利率、监管和项目执行保持纪律。更好的买点通常来自利率冲击或项目执行担忧导致的估值回撤。
+    </div>
+  </div>
+  <!-- ===== END SECTION 1 ===== -->
+
+  <!-- ===== SECTION 2: 财务概览 ===== -->
+  <div class="section" id="section-financials">
+    <div class="section-title">二、财务概览</div>
+
+    <!-- KPI Grid: 必须恰好 4 张卡片，顺序固定 -->
+    <div class="kpi-grid">
+
+      <!-- Card 1: 营业收入 -->
+      <div class="kpi-card up">
+        <div class="kpi-label">营业收入</div>
+        <div class="kpi-value">274.12亿美元</div>
+        <div class="kpi-change up">同比+10.7%（FY2024为247.53亿美元）</div>
+        <div class="kpi-sub">FY2025财年</div>
+      </div>
+
+      <!-- Card 2: 归母净利润 -->
+      <div class="kpi-card flat">
+        <div class="kpi-label">归母净利润</div>
+        <div class="kpi-value">68.35亿美元</div>
+        <div class="kpi-change flat">同比-1.6%；调整EPS同比+8.2%</div>
+        <div class="kpi-sub">FY2025财年</div>
+      </div>
+
+      <!-- Card 3: 自由现金流 -->
+      <div class="kpi-card down">
+        <div class="kpi-label">自由现金流（FCF）</div>
+        <div class="kpi-value">-121.21亿美元</div>
+        <div class="kpi-change down">经营现金流124.85亿美元，资本投入约246.06亿美元</div>
+        <div class="kpi-sub">FY2025财年</div>
+      </div>
+
+      <!-- Card 4: 净利率 -->
+      <div class="kpi-card up">
+        <div class="kpi-label">净利率</div>
+        <div class="kpi-value">3.71美元</div>
+        <div class="kpi-change up">调整EPS同比+8.2%</div>
+        <div class="kpi-sub">vs 上年 3.43美元</div>
+      </div>
+
+    </div>
+    <!-- END KPI Grid -->
+
+    <!-- 指标明细表 -->
+    <table class="metrics-table">
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>FY2025（当年）</th>
+          <th>FY2024（上年）</th>
+          <th>同比变动</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 每行格式：
+          <tr>
+            <td>指标名称</td>
+            <td>当年值</td>
+            <td>上年值</td>
+            <td class="metric-up 或 metric-down">±变动</td>
+          </tr>
+          必须包含以下行（按此顺序）：
+          毛利率 / 营业利润率 / 净利率 / ROE / ROA / 资产负债率 / 利息保障倍数 / 每股收益（EPS）/ 自由现金流利润率
+        -->
+        <tr><td>毛利率</td><td>62.3%</td><td>60.1%</td><td class="metric-up">改善</td></tr>
+<tr><td>营业利润率</td><td>30.2%</td><td>30.2%</td><td>基本持平</td></tr>
+<tr><td>净利率</td><td>24.9%</td><td>28.1%</td><td class="metric-down">恶化</td></tr>
+<tr><td>ROE</td><td>12.5%</td><td>13.9%</td><td class="metric-down">恶化</td></tr>
+<tr><td>ROA</td><td>3.2%</td><td>3.7%</td><td class="metric-down">恶化</td></tr>
+<tr><td>资产负债率</td><td>74.3%</td><td>73.7%</td><td>基本持平</td></tr>
+<tr><td>利息保障倍数</td><td>1.8x</td><td>3.3x</td><td class="metric-down">显著恶化</td></tr>
+<tr><td>每股收益（EPS）</td><td>3.30美元</td><td>3.37美元</td><td class="metric-down">恶化</td></tr>
+<tr><td>自由现金流利润率</td><td>-44.2%</td><td>-46.3%</td><td>基本持平</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 趋势分析：固定 5 张 trend-card；左边框均为绿色（up/down/trend-geo 仅作可选语义类，不再改颜色） -->
+    <div class="trend-cards">
+      <div class="trend-card flat">
+        <div class="trend-card-label">归母净利润趋势</div>
+        <div class="trend-card-text">FY2025归母净利为68.35亿美元，同比-1.6%；GAAP EPS从3.37美元降至3.30美元，但调整EPS从3.43美元升至3.71美元、同比+8.2%。这说明核心运营与可再生资产组合仍在增长，但GAAP口径受对冲、核退役基金和XPLR相关项目扰动。</div>
+      </div>
+      <div class="trend-card down">
+        <div class="trend-card-label">净利率趋势</div>
+        <div class="trend-card-text">FY2025净利率为24.9%，较FY2024的28.1%下降约-3.2个百分点；经营利润率从30.2%微升至30.2%，说明收入增长和FPL投资回报抵消了部分利息费用压力，但净利口径仍被财务费用和非经营项目影响。</div>
+      </div>
+      <div class="trend-card down">
+        <div class="trend-card-label">自由现金流趋势</div>
+        <div class="trend-card-text">FY2025经营现金流124.85亿美元，但FPL资本开支、NEER项目投资和核燃料等资本支出约246.06亿美元，估算自由现金流为-121.21亿美元，FCF利润率约-44.2%。这不是短期经营崩坏，而是公用事业高投资周期的结构性资金需求。</div>
+      </div>
+      <div class="trend-card up">
+        <div class="trend-card-label">最新经营更新</div>
+        <div class="trend-card-text">Q1 2026收入67.01亿美元，同比+7.3%；调整EPS为1.09美元，同比+10.1%。FPL监管资本投入同比增长约8.8%，过去12个月新增近10万客户；NEER单季新增4.0GW可再生能源/储能合同 backlog，其中储能1.3GW，期末 backlog 约33GW。管理层维持2026年调整EPS 3.92-4.02美元并瞄准区间高端。</div>
+      </div>
+      <div class="trend-card trend-geo">
+        <div class="trend-card-label">地区收入结构</div>
+        <div class="trend-card-text">收入和资产主要在美国，FPL集中于佛罗里达受监管零售电力业务，NEER在美国和加拿大开发、拥有和运营可再生能源、储能、核电、天然气及输电资产。佛罗里达人口和用电需求增长为FPL提供长期资本投放场景；NEER的合同式项目组合则受企业、数据中心和公用事业客户的长期购电需求驱动。</div>
+      </div>
+    </div>
+  </div>
+  <!-- ===== END SECTION 2 ===== -->
+
+  <!-- ===== SECTION 3: 收入预测 ===== -->
+  <div class="section" id="section-prediction">
+    <div class="section-title">三、收入预测（宏观因子模型）</div>
+
+    <div class="waterfall-meta">
+      φ（市场磨损因子）= 0.5 &nbsp;|&nbsp; 置信度：高 &nbsp;|&nbsp; 模型：宏观因子模型 v1.0 &nbsp;|&nbsp; 预测财年：FY2026E
+    </div>
+
+    <div class="waterfall-wrap">
+      <svg id="chart-waterfall"></svg>
+    </div>
+
+    <!-- 因子明细表 -->
+    <table class="factor-table">
+      <thead>
+        <tr>
+          <th>因子</th>
+          <th>宏观变化（%）</th>
+          <th>β系数</th>
+          <th>φ值</th>
+          <th>调整幅度（%）</th>
+          <th>方向</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 格式：<tr><td>因子名</td><td>宏观变化</td><td>β</td><td>φ</td><td>调整幅度</td><td class="metric-up/down">正/负向</td></tr> -->
+        <tr><td>美国政策利率/长期利率</td><td>-0.43</td><td>-0.80</td><td>0.5</td><td>+0.17</td><td class="metric-up">正向</td></tr>
+<tr><td>美国实际GDP增长</td><td>-0.70</td><td>0.20</td><td>0.5</td><td>-0.07</td><td class="metric-down">负向</td></tr>
+<tr><td>美国通胀</td><td>-0.40</td><td>-0.30</td><td>0.5</td><td>+0.06</td><td class="metric-up">正向</td></tr>
+<tr><td>美元指数</td><td>-1.90</td><td>0.05</td><td>0.5</td><td>-0.05</td><td class="metric-down">负向</td></tr>
+<tr><td>天然气/能源价格</td><td>+13.30</td><td>-0.10</td><td>0.5</td><td>-0.67</td><td class="metric-down">负向</td></tr>
+<tr><td>佛罗里达负荷/数据中心需求</td><td>+8.00</td><td>0.35</td><td>0.5</td><td>+1.40</td><td class="metric-up">正向</td></tr>
+      </tbody>
+    </table>
+
+    <div class="macro-factor-commentary">
+      <div class="macro-factor-commentary-label">宏观因子传导阐释</div>
+      <div class="macro-factor-commentary-body">六因子合计对FY2026E收入增长的净调整约+0.84个百分点。正向因素来自利率缓和、FPL服务区负荷增长和企业/公用事业对清洁电力的长期需求；负向因素来自天然气/设备成本、宏观放缓及电网互联约束。</div>
+    </div>
+
+    <div class="disclaimer-box" style="margin-top:16px;">
+      预测数据为概率性估计，仅供参考，不构成投资建议。本报告中的收入预测基于宏观因子量化模型，使用行业敏感度系数（β）及市场磨损因子（φ = 0.5），结合公开宏观经济预测数据及公司特定情报生成。实际结果可能与预测存在重大差异。
+    </div>
+  </div>
+  <!-- ===== END SECTION 3 ===== -->
+
+  <!-- ===== SECTION 4: 收入流向分析 ===== -->
+  <div class="section" id="section-sankey">
+    <div class="section-title">四、收入流向分析（Sankey 桑基图）</div>
+
+    <div class="tab-bar" id="sankey-tabs">
+      <div class="tab active" onclick="switchTab('sankey','actual',this)">FY2025 实际</div>
+      <div class="tab"        onclick="switchTab('sankey','forecast',this)">FY2026E 预测</div>
+    </div>
+
+    <div class="tab-panel active" id="sankey-panel-actual">
+      <div class="sankey-wrap">
+        <svg id="chart-sankey-actual"></svg>
+      </div>
+    </div>
+    <div class="tab-panel" id="sankey-panel-forecast">
+      <div class="sankey-wrap">
+        <svg id="chart-sankey-forecast"></svg>
+      </div>
+    </div>
+
+    <p class="sankey-note">FY2025收入274.12亿美元，毛利池约170.69亿美元，经营利润82.80亿美元。基于Q1 2026收入同比+7.3%、NEER backlog约33GW和FPL监管资产增长，模型预测FY2026E收入约29.9亿美元、同比+9.0%。若设备成本与利率压力缓和，经营利润仍有小幅扩张空间；若项目投运延误，收入确认会向后递延。数据来源：NextEra官方财报/SEC。</p>
+  </div>
+  <!-- ===== END SECTION 4 ===== -->
+
+  <!-- ===== SECTION 5: 波特五力分析 ===== -->
+  <div class="section" id="section-porter">
+    <div class="section-title">五、波特五力分析</div>
+
+    <div class="tab-bar" id="porter-tabs">
+      <div class="tab active" onclick="switchTab('porter','company',this)">公司层面</div>
+      <div class="tab"        onclick="switchTab('porter','industry',this)">行业层面</div>
+      <div class="tab"        onclick="switchTab('porter','forward',this)">前景展望</div>
+    </div>
+
+    <!-- Tab: 公司层面 -->
+    <div class="tab-panel active" id="porter-panel-company">
+      <div class="porter-wrap">
+        <div>
+          <canvas id="chart-radar-company"></canvas>
+        </div>
+        <div>
+          <ul class="porter-scores" id="scores-company">
+            <!-- 5 个 li：供应商议价能力、买方议价能力、新进入者威胁、替代品威胁、行业竞争强度；占位符见下方填充规则，勿删本行注释或引入未闭合的 HTML 注释 -->
+            供应商议价能力: 3/5<br>买方议价能力: 3/5<br>新进入者威胁: 2/5<br>替代品威胁: 3/5<br>行业竞争强度: 4/5
+          </ul>
+          <div class="porter-text"><ul style="margin:0;padding-left:1.25em;"><li>基于初稿评分，供应商议价能力为3分。风机、太阳能组件、储能电池、变压器和并网设备存在周期性瓶颈，供应商在交付期上有一定议价力；但NextEra采购规模大、项目管线长，可通过长期框架协议和多供应商降低单点风险。</li><li>基于初稿评分，买方议价能力为3分。FPL零售客户价格由监管机制决定，终端客户直接议价力弱；但佛州公用事业委员会、企业购电客户和市政/合作社客户会对费率、PPA价格与可靠性提出硬约束，综合为中等压力。</li><li>基于初稿评分，新进入者威胁为2分。电力资产开发需要土地、许可、互联排队、融资能力、税收抵免管理和长期运维能力，新进入者很难复制NextEra的资产组合和融资成本优势。</li><li>基于初稿评分，替代品威胁为3分。分布式光伏、独立储能、天然气电厂和其他公用事业供应均可替代部分需求，但FPL的受监管电网地位和NEER的多能源组合降低了单一技术替代风险。</li><li>基于初稿评分，行业竞争强度为4分。可再生开发商、传统公用事业、石油气资本和数据中心自建电源都在争夺并网容量、设备和客户合同；竞争强度高，但NextEra规模和执行记录仍形成防御。</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: 行业层面 -->
+    <div class="tab-panel" id="porter-panel-industry">
+      <div class="porter-wrap">
+        <div>
+          <canvas id="chart-radar-industry"></canvas>
+        </div>
+        <div>
+          <ul class="porter-scores" id="scores-industry">
+            供应商议价能力: 3/5<br>买方议价能力: 3/5<br>新进入者威胁: 2/5<br>替代品威胁: 3/5<br>行业竞争强度: 4/5
+          </ul>
+          <div class="porter-text"><ul style="margin:0;padding-left:1.25em;"><li>基于初稿评分，供应商议价能力为3分。北美电力行业在变压器、燃机、风机、电池和工程施工端普遍面临交付周期拉长，供应商压力高于历史均值；同时大客户采购规模上升推动部分成本缓释。</li><li>基于初稿评分，买方议价能力为3分。监管机构、企业PPA客户和大型科技公司对价格、碳属性和可靠性都有更强要求，买方压力从传统零售端转移到合同和监管端。</li><li>基于初稿评分，新进入者威胁为2分。开发新电力资产的门槛被互联、许可、资本成本和税务结构抬高，行业新进入者更多通过合资或收购切入，而非从零搭建完整平台。</li><li>基于初稿评分，替代品威胁为3分。天然气、核电、分布式能源、需求响应和储能组合会相互替代，但电力需求增长本身扩大了行业容量需求，替代更多发生在技术结构而非总量层面。</li><li>基于初稿评分，行业竞争强度为4分。AI数据中心、工业回流和电气化带来增量需求，也吸引大量资本进入电源开发；项目资源、合同价格和工程队伍争夺加剧，行业竞争维持高位。</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: 前景展望 -->
+    <div class="tab-panel" id="porter-panel-forward">
+      <div class="porter-wrap">
+        <div>
+          <canvas id="chart-radar-forward"></canvas>
+        </div>
+        <div>
+          <ul class="porter-scores" id="scores-forward">
+            供应商议价能力: 4/5<br>买方议价能力: 3/5<br>新进入者威胁: 2/5<br>替代品威胁: 3/5<br>行业竞争强度: 4/5
+          </ul>
+          <div class="porter-text"><ul style="margin:0;padding-left:1.25em;"><li>基于初稿评分，供应商议价能力为4分。若数据中心和电网升级需求持续，变压器、燃机、电池和高压设备供给紧张可能延续到2030年前后，供应商交付能力将成为增长瓶颈。</li><li>基于初稿评分，买方议价能力为3分。大型科技客户和公用事业客户需要快速、低碳、可靠电力，会提升对速度和价格的要求；不过缺电环境也让优质开发商保留一定合同定价力。</li><li>基于初稿评分，新进入者威胁为2分。政策激励和需求增长会吸引资本，但真正能同时解决并网、许可、融资和运维的新平台仍少，新进入者威胁维持偏低。</li><li>基于初稿评分，替代品威胁为3分。先进核能、燃气+CCS、长时储能和分布式资源未来可能改变技术结构，但商业化时间和规模不确定，短中期替代压力中等。</li><li>基于初稿评分，行业竞争强度为4分。长期需求增长会把竞争从“找客户”转向“抢并网、抢设备、抢资本”，头部平台相对受益，但行业整体竞争仍维持较高强度。</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- ===== END SECTION 5 ===== -->
+
+  <!-- ===== SECTION 6: 附录 ===== -->
+  <div class="section" id="section-appendix">
+    <div class="section-title">附录</div>
+
+    <p style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px;">数据来源</p>
+    <table class="appendix-table">
+      <thead><tr><th>来源类型</th><th>具体来源</th><th>数据日期</th><th>置信度</th></tr></thead>
+      <tbody>
+        <tr><td>SEC公司身份与历史申报</td><td>https://www.sec.gov/edgar/browse/?CIK=753308</td><td>高</td></tr>
+<tr><td>FY2025收入、净利、调整EPS、现金流</td><td>https://www.investor.nexteraenergy.com/~/media/Files/N/NEE-IR/reports-and-fillings/quarterly-earnings/2025/Q4%202025/2026-0127%20NEEQ42025News%20Release%20vF.pdf</td><td>高</td></tr>
+<tr><td>Q1 2026收入、调整EPS、backlog、管理层指引</td><td>https://www.investor.nexteraenergy.com/~/media/Files/N/NEE-IR/reports-and-fillings/quarterly-earnings/2026/Q1%202026/2026-0423%20NEEQ12026News%20Release%20vF.pdf</td><td>高</td></tr>
+<tr><td>长期增长率重申</td><td>https://www.investor.nexteraenergy.com/news-and-events/news-releases/2026/05-04-2026-120518586</td><td>高</td></tr>
+<tr><td>市场价格、估值和股息率</td><td>https://stockanalysis.com/stocks/nee/</td><td>中</td></tr>
+<tr><td>市值交叉核对</td><td>https://companiesmarketcap.com/nextera-energy/marketcap/</td><td>中</td></tr>
+<tr><td>Logo来源</td><td>https://commons.wikimedia.org/wiki/File:NextEra_Energy_logo_(1).svg</td><td>中</td></tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:13px;font-weight:700;color:var(--text-primary);margin:16px 0 10px;">预测模型方法论</p>
+    <div class="methodology-box">
+      <strong>预测公式：</strong><br>
+      预测营收增长率 = 基准增长率 + Σ（宏观因子变化% × β<sub>sector</sub> × φ）+ 公司特定调整项<br><br>
+      <strong>参数：</strong>φ = 0.5（市场磨损因子）| 置信度：高<br><br>
+      本报告采用SEC/公司IR事实底稿、六因子宏观调整模型和波特五力威胁评分。波特评分为压力/威胁方向：1-2为低威胁，3为中性，4-5为高威胁。收入预测不是管理层指引，而是根据Q1 2026表现、backlog、FPL资本投入和宏观因子形成的情景估计。
+    </div>
+
+    <div class="disclaimer-box">
+      <strong>免责声明：</strong>本报告由 Equity Research Skill 自动生成，仅供参考，不构成任何投资建议或要约。报告中的预测数据基于量化模型及公开信息，存在重大不确定性，实际结果可能与预测存在重大差异。投资者在做出任何投资决策前应自行进行独立研究，并充分了解相关风险。本报告的作者及生成工具不对任何基于本报告的投资损失承担责任。
+    </div>
+  </div>
+  <!-- ===== END SECTION 6 ===== -->
+
+</div><!-- end .container -->
+
+<script>
+/* ============================================================
+   LOCKED JAVASCRIPT — COPY VERBATIM, ONLY REPLACE DATA VARIABLES
+   ============================================================ */
+
+// ---------- Theme Toggle ----------
+function toggleTheme() {
+  const html = document.documentElement;
+  html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  redrawAllCharts();
+}
+
+// ---------- Tab Switcher ----------
+function switchTab(group, panelId, clickedTab) {
+  document.querySelectorAll('#' + group + '-tabs .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('[id^="' + group + '-panel-"]').forEach(p => p.classList.remove('active'));
+  clickedTab.classList.add('active');
+  document.getElementById(group + '-panel-' + panelId).classList.add('active');
+}
+
+// ---------- Theme Colors Helper ----------
+function themeColor(lightVal, darkVal) {
+  return document.documentElement.dataset.theme === 'dark' ? darkVal : lightVal;
+}
+
+// ============================================================
+// DATA VARIABLES — REPLACE ONLY THE VALUES BELOW THIS LINE
+// ============================================================
+
+// --- Waterfall Data ---
+// UNITS (P0): Every start/end/value is a PERCENTAGE POINT for the revenue-GROWTH bridge
+// (e.g. -3.0 => -3.0%). The script appends "%" — do NOT pass decimals like 0.03 for 3%.
+// FORBIDDEN: base_revenue, revenue in $M, or any dollar bridge — Section IV Sankey only.
+// Build from prediction_waterfall.json: baseline_growth_pct, macro_adjustment_pct,
+// company_specific_adjustment_pct, predicted_revenue_growth_pct (per-factor bars only if still in %).
+// Each bar: { label, start, end, value, type }
+// type: "baseline" | "positive" | "negative" | "result"
+const waterfallData = [{"label": "基线增长", "value": 7.0}, {"label": "宏观调整", "value": 0.84}, {"label": "公司特定", "value": 1.2}, {"label": "预测增速", "value": 9.0}];
+// Example:
+// [
+//   { label: "基准增长", start: 0,   end: 4.2,  value: 4.2,  type: "baseline"  },
+//   { label: "利率环境", start: 4.2, end: 7.8,  value: 3.6,  type: "positive"  },
+//   { label: "关税风险", start: 7.8, end: 6.1,  value: -1.7, type: "negative"  },
+//   { label: "公司特定", start: 6.1, end: 8.4,  value: 2.3,  type: "positive"  },
+//   { label: "预测结果", start: 0,   end: 8.4,  value: 8.4,  type: "result"    }
+// ]
+
+// --- Sankey Actual Data ---
+const sankeyActualData = {"nodes": [{"name": "营业收入"}, {"name": "燃料/购电/O&M"}, {"name": "毛利润"}, {"name": "折旧摊销"}, {"name": "税费及其他"}, {"name": "经营利润"}], "links": [{"source": 0, "target": 1, "value": 10343}, {"source": 0, "target": 2, "value": 17069}, {"source": 2, "target": 3, "value": 9049}, {"source": 2, "target": 4, "value": 2469}, {"source": 2, "target": 5, "value": 8280}]};
+// Example:
+// {
+//   nodes: [
+//     {name:"营业收入"},{name:"营业成本"},{name:"毛利润"},
+//     {name:"销售费用"},{name:"管理费用"},{name:"研发费用"},
+//     {name:"营业利润"},{name:"税及其他"},{name:"净利润"}
+//   ],
+//   links: [
+//     {source:0,target:1,value:250.5},{source:0,target:2,value:480.3},
+//     {source:2,target:3,value:85.1},{source:2,target:4,value:62.4},
+//     {source:2,target:5,value:45.0},{source:2,target:6,value:287.8},
+//     {source:6,target:7,value:52.3},{source:6,target:8,value:235.5}
+//   ]
+// }
+
+// --- Sankey Forecast Data ---
+const sankeyForecastData = {"nodes": [{"name": "营业收入"}, {"name": "燃料/购电/O&M"}, {"name": "毛利润"}, {"name": "折旧摊销"}, {"name": "税费及其他"}, {"name": "经营利润(预测)"}], "links": [{"source": 0, "target": 1, "value": 11209}, {"source": 0, "target": 2, "value": 18681}, {"source": 2, "target": 3, "value": 7100}, {"source": 2, "target": 4, "value": 2600}, {"source": 2, "target": 5, "value": 8981}]};
+// Same structure as sankeyActualData
+
+// --- Porter Radar Data ---
+// Score order must be: [供应商议价能力, 买方议价能力, 新进入者威胁, 替代品威胁, 行业竞争强度]
+// Score semantics: 1-2 = 低威胁/最好/绿色；3 = 中性/琥珀色；4-5 = 高威胁/最糟/红色。
+const porterScores = {
+  company:  [3, 3, 2, 3, 4],   // e.g. [3, 2, 4, 3, 4]
+  industry: [3, 3, 2, 3, 4],
+  forward:  [4, 3, 2, 3, 4]
+};
+
+// ============================================================
+// CHART RENDERING — DO NOT MODIFY BELOW THIS LINE
+// ============================================================
+
+// --- Waterfall Chart (D3) ---
+function drawWaterfall() {
+  const el = document.getElementById('chart-waterfall');
+  if (!el || !waterfallData.length) return;
+  d3.select(el).selectAll('*').remove();
+
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const textColor  = isDark ? '#b8b3a8' : '#3a3a3a';
+  const gridColor  = isDark ? '#2c3a4d' : '#cfc9bd';
+  const colorPos   = '#2e7d4f';
+  const colorNeg   = '#a83232';
+  const colorBase  = '#355a8a';
+  const colorRes   = '#1a2c4e';
+
+  const rect    = el.parentElement.getBoundingClientRect();
+  const W       = Math.max(rect.width || 600, 600);
+  const H       = 320;
+  const margin  = { top: 30, right: 30, bottom: 60, left: 60 };
+  const innerW  = W - margin.left - margin.right;
+  const innerH  = H - margin.top  - margin.bottom;
+
+  const svg = d3.select(el)
+    .attr('width',  W)
+    .attr('height', H);
+
+  const g = svg.append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const allVals  = waterfallData.flatMap(d => [d.start, d.end]);
+  const [minV, maxV] = [Math.min(...allVals), Math.max(...allVals)];
+  const pad    = (maxV - minV) * 0.15 || 1;
+  const yDomain = [minV - pad, maxV + pad];
+
+  const x = d3.scaleBand().domain(waterfallData.map(d => d.label)).range([0, innerW]).padding(0.35);
+  const y = d3.scaleLinear().domain(yDomain).range([innerH, 0]);
+
+  // Grid
+  g.append('g').attr('class', 'grid')
+    .call(d3.axisLeft(y).tickSize(-innerW).tickFormat(''))
+    .selectAll('line').attr('stroke', gridColor).attr('stroke-dasharray', '3,3');
+  g.select('.grid .domain').remove();
+
+  // Zero line
+  g.append('line')
+    .attr('x1', 0).attr('x2', innerW)
+    .attr('y1', y(0)).attr('y2', y(0))
+    .attr('stroke', gridColor).attr('stroke-width', 1.5);
+
+  // Axes
+  g.append('g').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(x))
+    .selectAll('text').attr('fill', textColor).attr('font-size', 11)
+    .attr('transform', 'rotate(-25)').attr('text-anchor', 'end');
+  g.append('g').call(d3.axisLeft(y).ticks(6).tickFormat(d => d + '%'))
+    .selectAll('text').attr('fill', textColor).attr('font-size', 11);
+  g.selectAll('.domain').attr('stroke', gridColor);
+  g.selectAll('.tick line').attr('stroke', gridColor);
+
+  // Y-axis label
+  svg.append('text')
+    .attr('transform', `rotate(-90)`)
+    .attr('x', -(H / 2)).attr('y', 16)
+    .attr('text-anchor', 'middle')
+    .attr('fill', textColor).attr('font-size', 11)
+    .text('增长率 (%)');
+
+  // Bars
+  const tooltip = d3.select('body').select('#wf-tooltip').empty()
+    ? d3.select('body').append('div').attr('id','wf-tooltip')
+        .style('position','fixed').style('background','rgba(26,44,78,0.92)')
+        .style('color','#fff').style('padding','8px 12px').style('border-radius','2px')
+        .style('font-size','12px').style('pointer-events','none').style('opacity',0)
+    : d3.select('#wf-tooltip');
+
+  waterfallData.forEach(d => {
+    const barColor = d.type === 'baseline' ? colorBase
+                   : d.type === 'result'   ? colorRes
+                   : d.value >= 0          ? colorPos : colorNeg;
+    const barY = y(Math.max(d.start, d.end));
+    const barH = Math.abs(y(d.start) - y(d.end));
+
+    g.append('rect')
+      .attr('x', x(d.label)).attr('y', barY)
+      .attr('width', x.bandwidth()).attr('height', Math.max(barH, 1))
+      .attr('fill', barColor).attr('rx', 3)
+      .on('mouseover', (event) => {
+        tooltip.style('opacity', 1)
+          .html(`<strong>${d.label}</strong><br>调整：${d.value > 0 ? '+' : ''}${d.value.toFixed(2)}%<br>结果：${d.end.toFixed(2)}%`);
+      })
+      .on('mousemove', (event) => {
+        tooltip.style('left', (event.clientX + 12) + 'px').style('top', (event.clientY - 28) + 'px');
+      })
+      .on('mouseout', () => tooltip.style('opacity', 0));
+
+    // Value label
+    g.append('text')
+      .attr('x', x(d.label) + x.bandwidth() / 2)
+      .attr('y', barY - 4)
+      .attr('text-anchor', 'middle')
+      .attr('fill', barColor)
+      .attr('font-size', 10).attr('font-weight', 600)
+      .text((d.value > 0 ? '+' : '') + d.value.toFixed(1) + '%');
+  });
+}
+
+// --- Sankey Chart (D3) ---
+function drawSankey(containerId, data, colorScheme) {
+  const el = document.getElementById(containerId);
+  if (!el || !data || !data.nodes || !data.links) return;
+  d3.select(el).selectAll('*').remove();
+
+  const isDark  = document.documentElement.dataset.theme === 'dark';
+  const textColor = isDark ? '#b8b3a8' : '#3a3a3a';
+
+  const rect   = el.parentElement.getBoundingClientRect();
+  const W      = Math.max(rect.width || 700, 600);
+  const H      = 380;
+  const margin = { top: 10, right: 120, bottom: 10, left: 10 };
+
+  const svg = d3.select(el).attr('width', W).attr('height', H);
+
+  const sankey = d3.sankey()
+    .nodeWidth(18)
+    .nodePadding(14)
+    .extent([[margin.left, margin.top], [W - margin.right, H - margin.bottom]]);
+
+  const graph = sankey({
+    nodes: data.nodes.map(d => Object.assign({}, d)),
+    links: data.links.map(d => Object.assign({}, d))
+  });
+
+  const color = d3.scaleOrdinal()
+    .domain(graph.nodes.map(d => d.name))
+    .range(colorScheme);
+
+  // Links
+  svg.append('g').attr('fill', 'none')
+    .selectAll('path')
+    .data(graph.links).join('path')
+    .attr('d', d3.sankeyLinkHorizontal())
+    .attr('stroke', d => color(d.source.name))
+    .attr('stroke-width', d => Math.max(1, d.width))
+    .attr('opacity', 0.45)
+    .on('mouseover', function() { d3.select(this).attr('opacity', 0.75); })
+    .on('mouseout',  function() { d3.select(this).attr('opacity', 0.45); });
+
+  // Nodes
+  svg.append('g')
+    .selectAll('rect')
+    .data(graph.nodes).join('rect')
+    .attr('x', d => d.x0).attr('y', d => d.y0)
+    .attr('height', d => Math.max(1, d.y1 - d.y0))
+    .attr('width', d => d.x1 - d.x0)
+    .attr('fill', d => color(d.name))
+    .attr('rx', 2);
+
+  // Labels
+  svg.append('g').style('font-size', '12px')
+    .selectAll('text')
+    .data(graph.nodes).join('text')
+    .attr('x', d => d.x0 < W / 2 ? d.x1 + 6 : d.x0 - 6)
+    .attr('y', d => (d.y1 + d.y0) / 2)
+    .attr('dy', '0.35em')
+    .attr('text-anchor', d => d.x0 < W / 2 ? 'start' : 'end')
+    .attr('fill', textColor)
+    .text(d => {
+      const val = d.value >= 1000 ? (d.value / 1000).toFixed(1) + 'bn' : d.value.toFixed(0) + 'm';
+      return d.name + ' ' + val;
+    });
+}
+
+const SANKEY_COLORS_ACTUAL   = ['#355a8a','#a83232','#2e7d4f','#b8842a','#6b4a7c','#3f7a78','#1a2c4e','#a83232','#2e7d4f'];
+const SANKEY_COLORS_FORECAST = ['#4d72a0','#b54545','#3d8c5c','#c89638','#7d5b8e','#4d8d8b','#2d4570','#b54545','#3d8c5c'];
+
+// --- Radar Chart (Chart.js) ---
+let radarCharts = {};
+function porterScoreColor(score) {
+  const s = Math.max(1, Math.min(5, Math.round(Number(score) || 0)));
+  if (s <= 2) return '#2e7d4f';
+  if (s === 3) return '#b8842a';
+  return '#a83232';
+}
+function drawRadar(canvasId, scores, label) {
+  if (radarCharts[canvasId]) { radarCharts[canvasId].destroy(); }
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(26,44,78,0.12)';
+  const textColor = isDark ? '#b8b3a8' : '#3a3a3a';
+  const pointColor = isDark ? '#6ea3d8' : '#1a2c4e';
+  const scoreColors = scores.map(porterScoreColor);
+
+  radarCharts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type: 'radar',
+    data: {
+      labels: ['供应商议价能力', '买方议价能力', '新进入者威胁', '替代品威胁', '行业竞争强度'],
+      datasets: [{
+        label: label,
+        data: scores,
+        backgroundColor: 'rgba(26,44,78,0.12)',
+        borderColor: pointColor,
+        borderWidth: 2,
+        pointBackgroundColor: scoreColors,
+        pointBorderColor: scoreColors,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: false,
+      scales: {
+        r: {
+          min: 0, max: 5,
+          ticks: { stepSize: 1, display: false },
+          grid:  { color: gridColor },
+          angleLines: { color: gridColor },
+          pointLabels: { color: textColor, font: { size: 11 } }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+function redrawAllCharts() {
+  drawWaterfall();
+  drawSankey('chart-sankey-actual',   sankeyActualData,   SANKEY_COLORS_ACTUAL);
+  drawSankey('chart-sankey-forecast', sankeyForecastData, SANKEY_COLORS_FORECAST);
+  drawRadar('chart-radar-company',  porterScores.company,  '公司层面');
+  drawRadar('chart-radar-industry', porterScores.industry, '行业层面');
+  drawRadar('chart-radar-forward',  porterScores.forward,  '前景展望');
+}
+
+// Init on load
+document.addEventListener('DOMContentLoaded', () => {
+  redrawAllCharts();
+});
+window.addEventListener('resize', () => {
+  drawWaterfall();
+  drawSankey('chart-sankey-actual',   sankeyActualData,   SANKEY_COLORS_ACTUAL);
+  drawSankey('chart-sankey-forecast', sankeyForecastData, SANKEY_COLORS_FORECAST);
+});
+</script>
+
+</body>
+</html>
