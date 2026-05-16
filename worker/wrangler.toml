@@ -93,11 +93,11 @@ command = "node build-assets.mjs"
 
 [vars]
 SITE_URL = "https://www.paiink.com"
-# Cloudflare Turnstile public site key. The default below is CF's well-known
-# always-pass test key for local dev — replace with the real key from the
-# Turnstile dashboard before deploying to production, then run
-# `wrangler secret put TURNSTILE_SECRET` to pair it with the matching secret.
-TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
+# Cloudflare Turnstile public site key. Paired with the TURNSTILE_SECRET
+# secret (set via `wrangler secret put`). For local dev, drop the
+# well-known CF test site key `1x00000000000000000000AA` into worker/.dev.vars
+# alongside the matching test secret (`1x0000000000000000000000000000000AA`).
+TURNSTILE_SITE_KEY = "0x4AAAAAADQp-3SG8OcSm1AN"
 
 # Workers free-tier limits: 100k req/day, 10ms CPU/req (we are I/O-bound
 # on D1/R2 calls so we use mostly wall time, not CPU time).
