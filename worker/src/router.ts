@@ -82,12 +82,29 @@ export async function route(
     return handleCorsPreflight(req);
   }
 
+  // HEAD mirrors GET (RFC 7231 §4.3.2): same headers + status, no body.
+  // Dispatching as GET means page handlers don't need HEAD branches; we
+  // discard the body at the edge. Wasted body-render CPU is fine for the
+  // rare uptime-monitor / preflight HEAD hits we expect.
+  const dispatchMethod = method === "HEAD" ? "GET" : method;
+  const stripBody = method === "HEAD";
+
   try {
-    const resp = await dispatch(req, env, ctx, method, path);
-    return applyCommonHeaders(resp, req);
+    const resp = await dispatch(req, env, ctx, dispatchMethod, path);
+    const final = applyCommonHeaders(resp, req);
+    return stripBody ? bodyless(final) : final;
   } catch (err) {
-    return handleError(err, req, path, getLocale(req));
+    const errResp = handleError(err, req, path, getLocale(req));
+    return stripBody ? bodyless(errResp) : errResp;
   }
+}
+
+function bodyless(resp: Response): Response {
+  return new Response(null, {
+    status: resp.status,
+    statusText: resp.statusText,
+    headers: resp.headers,
+  });
 }
 
 async function dispatch(
