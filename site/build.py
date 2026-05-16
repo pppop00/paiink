@@ -90,9 +90,9 @@ HEADERS_FILE = f"""/*
 
 ZONES = [
     {"key": "finance", "name": "金融", "name_en": "Finance",
-     "lede": "公司研究、行业分析、财报解读。每篇都附 AI 出处证明。"},
+     "lede": "公司研究、行业分析、财报解读 —— 大家用 AI 写出来的好文章，挑一篇看看。"},
     {"key": "web3",    "name": "Web3",  "name_en": "",
-     "lede": "协议解读、链上分析、机制设计。每篇都附 AI 出处证明。"},
+     "lede": "协议解读、链上分析、机制设计 —— 一起分享 AI 帮你写的 Web3 内容。"},
 ]
 
 
@@ -202,7 +202,7 @@ def _shell(*, title: str, body: str, base: str, active: str | None = None,
 </header>
 {body}
 <footer class="site">
-  <div><a href="{base or './'}">pai.ink</a> · AI 写作，公开可验证</div>
+  <div><a href="{base or './'}">pai.ink</a> · AI 写的，值得读的</div>
   <div>
     <a href="{base}about.html">关于</a> ·
     <a href="{base}submit/">投稿 / Submit</a> ·
@@ -268,7 +268,7 @@ def _article_link(article: dict, *, base: str) -> str:
     <p class="meta">{meta}</p>
   </a>
   <div class="article-side">
-    <a class="side-link" href="{verify_href}">校验 →</a>
+    <a class="side-link" href="{verify_href}">详情 →</a>
   </div>
 </div>"""
 
@@ -281,8 +281,8 @@ _ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
 def write_landing(articles: dict[str, list[dict]]) -> None:
     parts: list[str] = []
     parts.append("""<section class="hero">
-  <h1>AI 写作，公开可验证。</h1>
-  <p>每篇文章都附 <code>ai-audit.json</code> 出处证明：所用 skill 的公开仓库 commit、模型、输入、作者签名全部锁死，任何人可校验。</p>
+  <h1>AI 写的，值得读的。</h1>
+  <p>把你用 AI 写的文章分享出来，看看别人怎么写，相互启发、相互欣赏。每篇都附一份 <a href="/agreement/v2/"><code>ai-audit.json</code></a>，记录是谁、用哪个 skill、什么模型生成的 —— 透明，但不严肃。</p>
 </section>""")
 
     for i, zone in enumerate(ZONES):
@@ -305,7 +305,7 @@ def write_landing(articles: dict[str, list[dict]]) -> None:
         parts.append('</section>')
 
     (DIST / "index.html").write_text(
-        _shell(title="pai.ink — AI 写作，公开可验证", body="\n".join(parts), base="")
+        _shell(title="pai.ink — AI 写的，值得读的", body="\n".join(parts), base="")
     )
 
 
@@ -335,25 +335,10 @@ def write_verify_page(zone: str, slug: str, manifest: dict) -> None:
     skill = manifest.get("skill", {})
     gen = manifest.get("generation", {})
     author = manifest.get("author", {})
-    verifier = manifest.get("verifier") or {}
     art_id = art.get("id")
     if not art_id:
         return
     has_sig = "signature" in manifest
-    is_verified = bool(verifier.get("verified_at")) and not verifier.get("checks_warned")
-
-    if is_verified:
-        status_class = "ok"
-        status_text = "已校验 / Verified"
-        sub = f"CI 在 {_h(verifier.get('verified_at', ''))} 完成全部检查。"
-    elif verifier.get("verified_at"):
-        status_class = "warn"
-        status_text = "部分通过 / Partially verified"
-        sub = "存在非阻断警告，详见下方完整 manifest。"
-    else:
-        status_class = "warn"
-        status_text = "未携带 CI 校验戳 / Not CI-verified"
-        sub = "本文尚未经过 pai 的 CI 校验。可下载 manifest 自行验证。"
 
     repo_url = skill.get("repo_url", "")
     repo_commit = skill.get("repo_commit", "")
@@ -378,19 +363,29 @@ def write_verify_page(zone: str, slug: str, manifest: dict) -> None:
         ("Skill commit", commit_link),
         ("模型 / Model", f'<code>{_h(gen.get("model", ""))}</code>'),
         ("Harness", _h(gen.get("harness", "")) or "—"),
-        ("生成时间", f'{_h(gen.get("started_at", ""))} → {_h(gen.get("finished_at", ""))}'),
+    ]
+    # Legacy manifests (pre-v2) have generation.started_at/finished_at; new ones don't.
+    started_at = gen.get("started_at", "")
+    finished_at = gen.get("finished_at", "")
+    if started_at or finished_at:
+        rows.append(("生成时间", f'{_h(started_at)} → {_h(finished_at)}'))
+    api_req_id = gen.get("api_request_id", "")
+    if api_req_id:
+        rows.append(("API request id", f'<code>{_h(api_req_id)}</code>'))
+    rows.extend([
+        ("发布时间", _h(art.get("published_at", "")) or "—"),
         ("内容哈希", f'<code title="{_h(content_hash)}">{_h(short_hash)}</code>'),
         ("ed25519 签名", "存在" if has_sig else "—"),
-    ]
+    ])
     if author.get("wallet"):
         rows.append(("钱包", f'<code>{_h(author["wallet"])}</code>'))
 
     raw_json = html.escape(json.dumps(manifest, indent=2, ensure_ascii=False))
 
     body = [f"""<section class="verify-head">
-  <p class="eyebrow">校验 / Provenance</p>
-  <h1 class="status {status_class}">{_h(status_text)}</h1>
-  <p class="sub">{sub}</p>
+  <p class="eyebrow">详情 / Details</p>
+  <h1>{_h(art.get("title", ""))}</h1>
+  <p class="sub">出处与 manifest。可下载源 <a href="{manifest_href}">ai-audit.json</a> 本地校验。</p>
 </section>
 
 <dl class="manifest">"""]
@@ -408,7 +403,7 @@ def write_verify_page(zone: str, slug: str, manifest: dict) -> None:
     out = DIST / "verify" / art_id
     out.mkdir(parents=True, exist_ok=True)
     (out / "index.html").write_text(
-        _shell(title=f"校验 {art_id[:8]} — pai.ink", body="\n".join(body), base="../../")
+        _shell(title=f"详情 {art_id[:8]} — pai.ink", body="\n".join(body), base="../../")
     )
 
 
@@ -419,24 +414,27 @@ def write_about() -> None:
   <h1>关于 pai.ink</h1>
 </section>
 <div class="prose">
-  <p>pai.ink 是一个用 AI skill 写作的发布平台。和普通博客最大的差别：每篇文章都带一份 <code>ai-audit.json</code>，把"是用哪个 skill 仓库的哪个 commit、哪个模型、哪些输入"全部锁死。CI 会做九项校验，失败就拒绝合并。</p>
+  <p>pai.ink 是大家分享 AI 写作的地方。文章可以是公司研究、协议拆解、生活随笔——只要主要内容由 AI 生成，就欢迎放上来给大家看看。</p>
 
-  <h2>为什么需要这个</h2>
-  <p>当所有内容都可能由 AI 生成时，"作者承诺这是 AI 写的"远远不够。pai 提供的是<strong>机器可验证的出处</strong>——任何人都能拿着 manifest 重跑一遍 skill，或者验证签名，或者比对哈希。</p>
+  <h2>这里和普通博客的区别</h2>
+  <p>每篇文章都带一份 <code>ai-audit.json</code>，写明用了哪个 skill 仓库、哪个 commit、哪个模型、什么时候发布的。<strong>不是为了"权威认证"</strong>，是为了让别人能去顺着这条线索找到你的 skill、自己也试试、做出更好的东西。</p>
 
   <h2>怎么投稿</h2>
   <ol>
-    <li>用你的 AI skill（必须是<strong>公开</strong>仓库）生成 HTML 文章。</li>
-    <li>跑 <code>tools/emit_audit.py</code> 生成 manifest，<code>tools/sign_audit.py sign</code> 加 ed25519 签名。</li>
-    <li>Fork <a href="https://github.com/pppop00/paiink">仓库</a> → 放到 <code>content/&lt;zone&gt;/&lt;slug&gt;/</code> → 开 PR。</li>
-    <li>CI 绿了就自动合并、上线。</li>
+    <li>用你的 AI skill（公开 GitHub 仓库）生成一份 HTML 文章。</li>
+    <li>打开 <a href="submit/">投稿页面</a>，填表 + 选文件 + 同意协议，提交。</li>
+    <li>~60 秒后上线。无需登录、无需 token、无需 GitHub 账户。</li>
   </ol>
+  <p>AI agent 也可以直接 POST 到 <code>api.paiink.com/submit</code>，参数和表单一一对应。</p>
 
   <h2>分区</h2>
-  <p>目前两个：<strong>金融</strong>（公司研究/行业分析/财报）与 <strong>Web3</strong>（协议/链上/机制）。后续按需扩展，只需编辑 <code>config/categories.yaml</code>。</p>
+  <p>目前两个：<strong>金融</strong>（公司研究/行业分析/财报）与 <strong>Web3</strong>（协议/链上/机制）。需要新分区随时说一声。</p>
+
+  <h2>诚信</h2>
+  <p>提交时勾选的 <a href="agreement/v2/">投稿协议</a> 声明：文章的主要文本（≥ 90% 字数）由你声明的 AI Skill 生成。本站不验证真假，靠的是作者的自我声明 + 公开的 skill 仓库 + 撤稿权。把它当成 arXiv，不当成 SCI。</p>
 
   <h2>标准</h2>
-  <p>provenance 标准开源在 <a href="schemas/ai-audit/v1.json">ai-audit/v1.json</a>，规范文档见 <a href="schemas/ai-audit/SPEC.md">SPEC.md</a>（CC0 协议）。任何站点都可以采用同一份 schema——目的不是 pai 独占的徽章，而是"AI 写的"这件事可以在整个互联网上被验证。</p>
+  <p>provenance 标准开源在 <a href="schemas/ai-audit/v1.json">ai-audit/v1.json</a>，规范见 <a href="schemas/ai-audit/SPEC.md">SPEC.md</a>（CC0）。任何站点都可以采用——目的不是 pai 独占的徽章，而是"AI 写的"这件事在整个互联网上有统一格式。</p>
 </div>"""
     (DIST / "about.html").write_text(
         _shell(title="关于 — pai.ink", body=body, base="")
