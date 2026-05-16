@@ -19,25 +19,24 @@ import { escape } from "../util/html";
 import { CSP_POLICY } from "../templates/shell";
 import { HttpError } from "../types";
 import { renderRetracted } from "./error";
-
-const ZONE_LABEL: Record<Zone, string> = {
-  finance: "金融 / Finance",
-  web3: "Web3",
-};
+import { getLocale } from "../util/locale";
+import { t } from "../i18n";
 
 export async function renderArticleChrome(
-  _req: Request,
+  req: Request,
   env: Env,
   zone: Zone,
   slug: string,
 ): Promise<Response> {
+  const locale = getLocale(req);
   const row = await getArticleByZoneSlug(env.DB, zone, slug);
   if (!row) {
     throw new HttpError(404, "not_found", `No article at /${zone}/${slug}/`);
   }
   if (row.retracted_at) {
-    return renderRetracted(row);
+    return renderRetracted(row, locale);
   }
+  const zoneLabel = t(locale, `zone.${zone}.title`);
 
   const title = row.title || slug;
   const language = row.language;
@@ -90,9 +89,9 @@ export async function renderArticleChrome(
 <nav class="pai-topbar" aria-label="pai.ink site navigation">
   <a class="brand" href="/">pai.ink</a>
   <span class="sep" aria-hidden="true">·</span>
-  <a href="/${zone}/">${escape(ZONE_LABEL[zone])}</a>
+  <a href="/${zone}/">${escape(zoneLabel)}</a>
   <span class="sep" aria-hidden="true">·</span>
-  <a href="${verifyHref}">详情</a>
+  <a href="${verifyHref}">${escape(t(locale, "article.details"))}</a>
   <span class="title" title="${escape(title)}">${escape(title)}</span>
 </nav>
 <iframe src="${articleHref}" title="${escape(title)}" loading="eager" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>

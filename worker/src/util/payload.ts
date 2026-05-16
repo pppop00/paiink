@@ -42,8 +42,14 @@ export interface SubmitPayload {
   title: string;
   zone: Zone;
   language: Language;
-  display_name: string;
-  email: string;
+  /**
+   * Declared display_name. Optional starting Phase B: when the caller
+   * authenticates via session cookie or Bearer token, identity comes from
+   * the user row instead. Unauthenticated submits still require it.
+   */
+  display_name: string | null;
+  /** Declared email. Same optionality rules as display_name. */
+  email: string | null;
   skill_name: string;
   skill_repo_url: string;
   skill_repo_commit: string;
@@ -253,10 +259,23 @@ export async function parsePayload(req: Request): Promise<SubmitPayload> {
   const title = assertString(rawTitle, "title", { min: 1, max: 200 });
   const zone = assertEnum(rawZone, "zone", ZONES);
   const language = assertEnum(rawLanguage, "language", LANGUAGES);
-  const display_name = assertString(rawDisplayName, "display_name", { min: 1, max: 100 });
-  const email = assertString(rawEmail, "email", { min: 3, max: 254 });
-  if (!EMAIL_RE.test(email)) {
-    throw new HttpError(400, "validation", "email must be a syntactically valid address");
+
+  // display_name + email are optional starting Phase B (session/Bearer
+  // auth supplies them). When present they must still be well-formed;
+  // when absent, leave as null and let the caller fill them in from the
+  // authenticated user. The submit handler enforces "either auth OR both
+  // fields present" so this loosening doesn't open an anonymous-bypass hole.
+  const dnPresent = rawDisplayName !== undefined && rawDisplayName !== null && rawDisplayName !== "";
+  const emPresent = rawEmail !== undefined && rawEmail !== null && rawEmail !== "";
+  const display_name = dnPresent
+    ? assertString(rawDisplayName, "display_name", { min: 1, max: 100 })
+    : null;
+  let email: string | null = null;
+  if (emPresent) {
+    email = assertString(rawEmail, "email", { min: 3, max: 254 });
+    if (!EMAIL_RE.test(email)) {
+      throw new HttpError(400, "validation", "email must be a syntactically valid address");
+    }
   }
   const skill_name = assertString(rawSkillName, "skill_name", { min: 1, max: 200 });
   const skill_repo_url = assertString(rawSkillRepoUrl, "skill_repo_url");

@@ -16,9 +16,11 @@ import type { Env, Zone } from "../types";
 import { getArticleByZoneSlug } from "../db/queries";
 import { getArticleHTML } from "../r2";
 import { HttpError } from "../types";
+import { getLocale } from "../util/locale";
+import { t } from "../i18n";
 
 export async function renderRawArticle(
-  _req: Request,
+  req: Request,
   env: Env,
   zone: Zone,
   slug: string,
@@ -28,7 +30,9 @@ export async function renderRawArticle(
     throw new HttpError(404, "not_found", `No article at /${zone}/${slug}/article`);
   }
   if (row.retracted_at) {
-    return new Response("撤稿 / Retracted: " + (row.retraction_reason || "(no reason given)"), {
+    const locale = getLocale(req);
+    const reason = row.retraction_reason || t(locale, "raw.no_reason");
+    return new Response(t(locale, "raw.retracted_prefix", { reason }), {
       status: 410,
       headers: { "content-type": "text/plain; charset=utf-8" },
     });

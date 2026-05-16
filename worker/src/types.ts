@@ -82,8 +82,21 @@ export interface Env {
    */
   GITHUB_TOKEN?: string;
 
-  /** Reserved for Phase B; unused in Phase A. */
+  /**
+   * Cloudflare Turnstile server-side secret. Used by util/turnstile.ts
+   * during signup (Phase B). Optional at the type level so local dev
+   * works without it — when missing, verifyTurnstile logs a warning and
+   * passes the request through. Production MUST have this set via
+   * `wrangler secret put TURNSTILE_SECRET`.
+   */
   TURNSTILE_SECRET?: string;
+
+  /**
+   * Cloudflare Turnstile public site key. Baked into signup HTML so the
+   * widget renders. Defaults to the CF always-pass test key for local
+   * dev; replace via wrangler.toml [vars] for production.
+   */
+  TURNSTILE_SITE_KEY?: string;
 }
 
 // ---------- ai-audit manifest (matches schemas/ai-audit/v1.json) ----------

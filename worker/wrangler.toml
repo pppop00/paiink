@@ -16,7 +16,17 @@ compatibility_date = "2026-05-15"
 #   GITHUB_TOKEN     — Anonymous-equivalent PAT used ONLY for skill repo
 #                      public/commit verification. No write scopes; never
 #                      touches paiink content (D1/R2 are our source of truth).
-#   TURNSTILE_SECRET — Reserved for Phase B signup/login. Unused in Phase A.
+#   TURNSTILE_SECRET — Cloudflare Turnstile server-side secret. Pairs with
+#                      TURNSTILE_SITE_KEY below. Set via
+#                      `wrangler secret put TURNSTILE_SECRET` after
+#                      provisioning a Turnstile widget in the dashboard.
+#                      For local dev, drop the well-known CF test secret
+#                      `1x0000000000000000000000000000000AA` (always-pass)
+#                      into worker/.dev.vars. The Env type already declares
+#                      `TURNSTILE_SECRET?: string` (Phase A reserved this).
+#                      When the secret is unset, util/turnstile.ts logs a
+#                      warning and lets requests through — fine for local
+#                      dev, NOT what we want in production.
 #
 # Local dev: put both in worker/.dev.vars (gitignored).
 
@@ -28,7 +38,8 @@ compatibility_date = "2026-05-15"
 [[d1_databases]]
 binding = "DB"
 database_name = "paiink"
-database_id = ""  # FILL ME after `wrangler d1 create paiink`
+database_id = "d6a813c2-41d0-4b07-983e-4031466e1161"
+preview_database_id = "d6a813c2-41d0-4b07-983e-4031466e1161"  # share with prod under --remote dev
 migrations_dir = "migrations"
 
 # R2: article HTML + manifest + agreements + schema + export bundles.
@@ -37,13 +48,15 @@ migrations_dir = "migrations"
 [[r2_buckets]]
 binding = "R2_CONTENT"
 bucket_name = "paiink-content"
+preview_bucket_name = "paiink-content"  # share with prod under --remote dev
 
 # KV: hot cache for top-likes ranking (Phase C onward). Phase A leaves
 # the binding optional — runtime code must handle env.KV_CACHE === undefined.
 # Created via `wrangler kv namespace create paiink-cache`.
 [[kv_namespaces]]
 binding = "KV_CACHE"
-id = ""  # FILL ME after `wrangler kv namespace create paiink-cache`
+id = "33a03286eafb4d149d88ea85cd641b6d"
+preview_id = "33a03286eafb4d149d88ea85cd641b6d"  # share with prod under --remote dev
 
 # KV namespace for legacy IP rate limiting (3 submissions/IP/day). Fail-soft:
 # if the namespace is somehow unreachable at runtime, the Worker lets
@@ -57,6 +70,7 @@ id = ""  # FILL ME after `wrangler kv namespace create paiink-cache`
 [[kv_namespaces]]
 binding = "KV_RATE_LIMIT"
 id = "b33d670c64324d3a8180c0d89563e1d4"
+preview_id = "b33d670c64324d3a8180c0d89563e1d4"  # share with prod under --remote dev
 
 # Workers Static Assets: CSS, fonts, cursor script, favicon. The
 # directory is committed under worker/static/ and uploaded as part of
@@ -67,6 +81,11 @@ binding = "ASSETS"
 
 [vars]
 SITE_URL = "https://www.paiink.com"
+# Cloudflare Turnstile public site key. The default below is CF's well-known
+# always-pass test key for local dev — replace with the real key from the
+# Turnstile dashboard before deploying to production, then run
+# `wrangler secret put TURNSTILE_SECRET` to pair it with the matching secret.
+TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
 
 # Workers free-tier limits: 100k req/day, 10ms CPU/req (we are I/O-bound
 # on D1/R2 calls so we use mostly wall time, not CPU time).

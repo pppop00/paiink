@@ -2,18 +2,18 @@
  * Shared article-row markup used by landing.ts and zone.ts.
  *
  * Mirrors site/build.py:_article_link (line 254). Title links to the article
- * chrome page; the "详情 →" side link points at /verify/<uuid> so curious
- * readers can inspect the manifest without first opening the article.
+ * chrome page; the side link points at /verify/<uuid> so curious readers
+ * can inspect the manifest without first opening the article.
  *
- * Phase A note: ArticleRow has no `subtitle` / `dek` column — the static
- * build pulled that from the manifest. We omit it for now; if Phase C wants
- * deks, we either denormalize them into D1 or look the manifest up here.
+ * The "详情/Details" label is the only chrome string in this row; everything
+ * else (title, author, skill name, date) is user data and not translated.
  */
 
 import type { ArticleRow } from "../types";
 import { escape, displayDate } from "../util/html";
+import { DEFAULT_LOCALE, t, type Locale } from "../i18n";
 
-export function articleRow(a: ArticleRow): string {
+export function articleRow(a: ArticleRow, locale: Locale = DEFAULT_LOCALE): string {
   const href = `/${a.zone}/${a.slug}/`;
   const verifyHref = `/verify/${a.uuid}`;
   const title = escape(a.title || a.slug);
@@ -30,7 +30,7 @@ export function articleRow(a: ArticleRow): string {
     <p class="meta">${meta}</p>
   </a>
   <div class="article-side">
-    <a class="side-link" href="${verifyHref}">详情 →</a>
+    <a class="side-link" href="${verifyHref}">${escape(t(locale, "me.details"))} →</a>
   </div>
 </div>`;
 }

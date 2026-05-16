@@ -6,6 +6,11 @@
  * cannot drift the rendered text from the pinned SHA-256. v1 is shown as
  * "archived"; v2 is the current version that new manifests bake into.
  *
+ * Locale note: the agreement markdown body is byte-pinned legal text and
+ * is NOT translated. The chrome around it (eyebrow, archived banner, hash
+ * notice) is localized. English visitors also see a short paragraph above
+ * the body explaining that the canonical text below is in Chinese.
+ *
  * No v3 path in Phase A — that's a Phase D deliverable when the new copy
  * ships and a fresh hash gets added to types.ts.
  */
@@ -21,6 +26,9 @@ import { getAgreementBytes } from "../r2";
 import { mdToHtml } from "../util/md";
 import { escape, shortHash } from "../util/html";
 import { shell } from "../templates/shell";
+import { getCurrentUser } from "../util/auth_middleware";
+import { getLocale } from "../util/locale";
+import { t } from "../i18n";
 
 const PINNED: Record<string, string> = {
   v1: AGREEMENT_V1_SHA256,
@@ -28,7 +36,7 @@ const PINNED: Record<string, string> = {
 };
 
 export async function renderAgreement(
-  _req: Request,
+  req: Request,
   env: Env,
   version: string,
 ): Promise<Response> {
@@ -36,8 +44,12 @@ export async function renderAgreement(
   if (!expected) {
     throw new HttpError(404, "not_found", `Unknown agreement version: ${version}`);
   }
+  const locale = getLocale(req);
 
-  const bytes = await getAgreementBytes(env.R2_CONTENT, version);
+  const [user, bytes] = await Promise.all([
+    getCurrentUser(req, env),
+    getAgreementBytes(env.R2_CONTENT, version),
+  ]);
   if (!bytes) {
     throw new HttpError(
       500,
@@ -65,31 +77,36 @@ export async function renderAgreement(
   const isArchived = version !== CURRENT_AGREEMENT_VERSION;
   const archivedBanner = isArchived
     ? `<section class="agreement-archived">
-  <p><strong>归档版本。</strong>新投稿适用 <a href="/agreement/${escape(
-    CURRENT_AGREEMENT_VERSION,
-  )}">最新版本</a>。已发布文章的 manifest 永久绑定其上传时的协议版本。</p>
+  <p><strong>${escape(t(locale, "agreement.archived_strong"))}</strong>${t(locale, "agreement.archived_body", { current: escape(CURRENT_AGREEMENT_VERSION) })}</p>
 </section>`
     : "";
 
   const notice = `<section class="agreement-hash">
-  <p class="eyebrow">协议哈希 / Agreement hash</p>
-  <p>本协议哈希: <code title="${escape(expected)}">${escape(short)}</code>
-   — 文件: <code>content/_meta/agreement-${escape(version)}.md</code>.
-   任何人可下载源文件并本地复算验证。</p>
+  <p class="eyebrow">${escape(t(locale, "agreement.eyebrow"))}</p>
+  <p>${t(locale, "agreement.hash_intro", { full: escape(expected), short: escape(short), version: escape(version) })}</p>
   <p class="agreement-verify">
     <code>shasum -a 256 content/_meta/agreement-${escape(version)}.md</code>
   </p>
 </section>`;
 
+  // The body is in Chinese; if the visitor's UI is English, surface a brief
+  // note above it so they know what they're looking at.
+  const enNote = locale === "en"
+    ? `<p class="lede" style="font-size:14px;margin:0 0 24px;color:var(--muted)">${t(locale, "agreement.english_note")}</p>`
+    : "";
+
   const body = `${archivedBanner}${notice}
+${enNote}
 <article class="prose agreement-body">
 ${bodyMd}
 </article>`;
 
   return new Response(
     shell({
-      title: `投稿协议 ${version} — pai.ink`,
+      title: t(locale, "agreement.title", { version }),
       body,
+      user,
+      locale,
     }),
     {
       status: 200,

@@ -194,6 +194,81 @@ Three rules that override convenience:
   must be **DNS-only** (grey cloud in Cloudflare); orange-cloud proxy
   degrades CN reach.
 
+## Current state (2026-05-16) — what's built, what's not
+
+The replatform plan (`~/.claude/plans/adaptive-plotting-pony.md`) breaks
+the work into 5 phases A→E. This section is the running snapshot. Update
+it when you ship a chunk.
+
+### ✅ Done — in local dev, typecheck clean, NOT yet deployed to CF
+
+**Phase A** — content storage off GitHub
+- D1 schema (users / sessions / api_tokens / articles / likes / rate_limits) live on `paiink` D1 database (id `d6a813c2-…`), KV cache namespace `33a03286…` provisioned, R2 bucket `paiink-content` provisioned
+- 4 existing articles migrated into D1 + R2 byte-identically (`content_sha256` survives the round-trip; verified end-to-end via `tools/verify_audit.py --offline`)
+- Single Worker (`worker/src/index.ts` → `router.ts`) serves all pages and writes new submissions directly to D1+R2 (no GitHub commit, no Pages rebuild)
+- `/verify/<uuid>/export` produces a tar.gz bundle that round-trips through the offline verifier
+
+**Phase B** — accounts + Turnstile
+- Email + password signup with Cloudflare Turnstile invisible captcha (test secret in `worker/.dev.vars`)
+- PBKDF2-HMAC-SHA256 password hashing (**100k iterations — Workers caps PBKDF2 at 100k**, can't use OWASP's 600k recommendation)
+- 90-day session cookie `paiink_sid` (HttpOnly, Secure, SameSite=Lax), D1-backed
+- API tokens issued from `/me` (format `pai_<8hex>_<32hex>`); plaintext shown once
+- Agents authenticate via `Authorization: Bearer pai_…` on `/api/submit` — manifest identity is server-derived from the token's user, not the declared payload
+- Self-service `POST /api/me/articles/<uuid>/retract` soft-deletes (article 410s, manifest stays on R2)
+- `/u/<handle>` public profile
+
+**Phase D (brought forward partially)** — i18n + agent-first submit
+- 166-key i18n catalog (`worker/src/i18n.ts`); zh-CN default, en supported
+- `paiink_lang` cookie controls locale, masthead has 中/EN toggle that sets cookie + reloads
+- All chrome / labels / nav / error pages translate; article body content stays in its declared language
+- /submit redesigned: hero + LLM instruction template (copy button) + collapsed manual form
+- /verify drops the Harness row from the display
+
+**Cross-cutting UI polish**
+- Three-zone masthead (brand · content nav · actions nav) with consistent `.btn` system
+- `.wrap--wide` (1080px) for landing/zone/me/profile/submit; default 720px for prose
+- Single-language labels everywhere (the old "我的文章 / My articles" bilingual pattern is gone)
+- Auth-aware nav on **every** read page (was a bug — landing didn't fetch user, fixed)
+- Centered `.auth-card` for signup/login
+
+### ❌ Not done
+
+**Deploy** — code is ready but nothing is live yet
+- Run `worker/node_modules/.bin/wrangler --config worker/wrangler.toml deploy`
+- Then bind `www.paiink.com` as a Worker Custom Domain (currently CF Pages serves it)
+- See `docs/DEPLOY_PHASE_A.md` for the 12-step playbook (most steps are already done — resource creation + data migration are complete)
+- Leave Pages online for 48h post-cutover as fallback
+
+**Phase C** — community signal
+- `likes` table is in the schema but no UI / API yet
+- Likes-as-bookmarks (one action, two meanings)
+- `/me` collection tab
+- Homepage ranking by 3-day-rolling top likes (currently shows newest)
+- Turnstile on `POST /api/articles/<uuid>/like` to prevent sybil
+
+**Phase D residual**
+- agreement v3 markdown (current is v2; v3 should remove the "IPFS storage" line — see `content/_meta/agreement-v2.md:44`)
+- Pin v3 hash in `worker/src/types.ts` AND `tools/verify_audit.py:PINNED_AGREEMENT_HASHES` AND drop it into R2
+
+**Phase E** — agent ergonomics
+- `/skills` index page listing every unique skill repo referenced across articles, with article counts
+- `docs/AGENT.md` — "How to wire your AI agent to paiink"
+- `.dev.vars` doc improvements
+
+**Explicitly out of scope** (don't add without asking)
+- Avatars, bios, follow/follower, comments
+- Email verification flow (the agreement makes the user responsible for accuracy)
+- Self-service password reset (Phase F+ if there's demand)
+- Multi-language article auto-translation
+- Astro (the README mentions it as a future step — it's now obsolete; the Worker rendering replaced the planned Astro static-site rebuild)
+- On-chain anchor for Web3 zone (a README todo from before — not a current priority)
+
+### Identity already provisioned in production D1
+
+User id=1 is the founder (Zelong, oliverun6@gmail.com, handle `zelong`, password_hash NULL — Phase B signup with that email will "claim" the row).
+
+User id=3 is `h.zelong@wustl.edu` / handle `zelong-f97b` / claimed via the live dev environment on 2026-05-16. This is the user's personal account; commit authorship per the identity table above stays `Zelong <oliverun6@gmail.com>` regardless.
+
 ## Don't
 
 - Don't run `git push --force` without asking.

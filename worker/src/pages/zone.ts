@@ -4,6 +4,9 @@
  * Mirrors site/build.py:write_zone_index() (line 318). Phase A only has 4
  * articles total so we pull up to 100 with no pagination — that ceiling
  * gives plenty of headroom before we have to add page links.
+ *
+ * Locale: title + lede pulled from the i18n catalog (`zone.<key>.title` /
+ * `zone.<key>.lede`). Article rows are localized via _article_row.ts.
  */
 
 import type { Env, Zone } from "../types";
@@ -11,49 +14,48 @@ import { listArticlesByZone } from "../db/queries";
 import { escape } from "../util/html";
 import { shell } from "../templates/shell";
 import { articleRow } from "./_article_row";
-
-const ZONE_META: Record<Zone, { title: string; lede: string }> = {
-  finance: {
-    title: "金融 / Finance",
-    lede:
-      "公司研究、行业分析、财报解读 —— 大家用 AI 写出来的好文章，挑一篇看看。",
-  },
-  web3: {
-    title: "Web3",
-    lede:
-      "协议解读、链上分析、机制设计 —— 一起分享 AI 帮你写的 Web3 内容。",
-  },
-};
+import { getCurrentUser } from "../util/auth_middleware";
+import { getLocale } from "../util/locale";
+import { t } from "../i18n";
 
 export async function renderZone(
-  _req: Request,
+  req: Request,
   env: Env,
   zone: Zone,
 ): Promise<Response> {
-  const meta = ZONE_META[zone];
-  const items = await listArticlesByZone(env.DB, zone, { limit: 100 });
+  const locale = getLocale(req);
+  const title = t(locale, `zone.${zone}.title`);
+  const lede = t(locale, `zone.${zone}.lede`);
+
+  const [user, items] = await Promise.all([
+    getCurrentUser(req, env),
+    listArticlesByZone(env.DB, zone, { limit: 100 }),
+  ]);
 
   const body: string[] = [
     `<section class="page-head">
-  <h1>${escape(meta.title)}</h1>
-  <p class="lede">${escape(meta.lede)}</p>
+  <h1>${escape(title)}</h1>
+  <p class="lede">${escape(lede)}</p>
 </section>`,
   ];
   if (items.length === 0) {
-    body.push('<p class="empty">暂无文章。</p>');
+    body.push(`<p class="empty">${escape(t(locale, "landing.empty"))}</p>`);
   } else {
     body.push('<ul class="articles">');
     for (const a of items) {
-      body.push(`<li>${articleRow(a)}</li>`);
+      body.push(`<li>${articleRow(a, locale)}</li>`);
     }
     body.push("</ul>");
   }
 
   return new Response(
     shell({
-      title: `${meta.title} — pai.ink`,
+      title: `${title} — pai.ink`,
       body: body.join("\n"),
       active: zone,
+      user,
+      wide: true,
+      locale,
     }),
     {
       status: 200,

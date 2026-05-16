@@ -2,8 +2,11 @@
  * GET / — landing page.
  *
  * Mirrors site/build.py:write_landing() (lines 288-315). Hero block + two
- * zone sections, each showing the top 5 newest articles. Phase A keeps the
- * existing Chinese copy verbatim; the hero rewrite ships in Phase D.
+ * zone sections, each showing the top 5 newest articles.
+ *
+ * Locale: all chrome strings (hero, zone titles, ledes, "all" link, empty
+ * state) come from `t(locale, ...)`. Article titles/authors are not
+ * translated — those are user data.
  */
 
 import type { Env, ArticleRow } from "../types";
@@ -11,57 +14,43 @@ import { listArticlesByZone } from "../db/queries";
 import { escape } from "../util/html";
 import { shell } from "../templates/shell";
 import { articleRow } from "./_article_row";
+import { getCurrentUser } from "../util/auth_middleware";
+import { getLocale } from "../util/locale";
+import { t } from "../i18n";
 
-const ZONES = [
-  {
-    key: "finance" as const,
-    name: "金融",
-    nameEn: "Finance",
-    lede: "公司研究、行业分析、财报解读 —— 大家用 AI 写出来的好文章，挑一篇看看。",
-  },
-  {
-    key: "web3" as const,
-    name: "Web3",
-    nameEn: "",
-    lede: "协议解读、链上分析、机制设计 —— 一起分享 AI 帮你写的 Web3 内容。",
-  },
-];
+const ZONE_KEYS = ["finance", "web3"] as const;
 
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
-function zoneTitle(zone: { name: string; nameEn: string }): string {
-  if (zone.nameEn && zone.nameEn !== zone.name) {
-    return `${zone.name} / ${zone.nameEn}`;
-  }
-  return zone.name;
-}
+export async function renderLanding(req: Request, env: Env): Promise<Response> {
+  const locale = getLocale(req);
 
-export async function renderLanding(_req: Request, env: Env): Promise<Response> {
-  // Phase A only knows two zones; pull each in parallel for snappier TTFB.
-  const buckets = await Promise.all(
-    ZONES.map((z) => listArticlesByZone(env.DB, z.key, { limit: 5 })),
-  );
+  const [user, ...buckets] = await Promise.all([
+    getCurrentUser(req, env),
+    ...ZONE_KEYS.map((z) => listArticlesByZone(env.DB, z, { limit: 5 })),
+  ]);
 
   const parts: string[] = [];
   parts.push(`<section class="hero">
-  <h1>AI 写的，值得读的。</h1>
+  <h1>${escape(t(locale, "landing.hero"))}</h1>
 </section>`);
 
-  ZONES.forEach((zone, i) => {
+  ZONE_KEYS.forEach((zoneKey, i) => {
     const items: ArticleRow[] = buckets[i] ?? [];
     const roman = i < ROMAN.length ? ROMAN[i] : String(i + 1);
+    const title = t(locale, `zone.${zoneKey}.title`);
     parts.push(`<section class="zone">
-  <p class="zone-roman">第 ${roman} 区</p>
+  <p class="zone-roman">${escape(t(locale, "landing.zone.roman", { n: roman }))}</p>
   <div class="zone-head">
-    <h2>${escape(zoneTitle(zone))}</h2>
-    <a class="more" href="/${zone.key}/">查看全部 →</a>
+    <h2>${escape(title)}</h2>
+    <a class="more" href="/${zoneKey}/">${escape(t(locale, "landing.zone.more"))}</a>
   </div>`);
     if (items.length === 0) {
-      parts.push('<p class="empty">暂无文章。</p>');
+      parts.push(`<p class="empty">${escape(t(locale, "landing.empty"))}</p>`);
     } else {
       parts.push('<ul class="articles">');
       for (const a of items) {
-        parts.push(`<li>${articleRow(a)}</li>`);
+        parts.push(`<li>${articleRow(a, locale)}</li>`);
       }
       parts.push("</ul>");
     }
@@ -70,8 +59,11 @@ export async function renderLanding(_req: Request, env: Env): Promise<Response> 
 
   return new Response(
     shell({
-      title: "pai.ink — AI 写的，值得读的",
+      title: t(locale, "landing.title"),
       body: parts.join("\n"),
+      user,
+      wide: true,
+      locale,
     }),
     {
       status: 200,

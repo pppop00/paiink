@@ -3,18 +3,24 @@
  *
  * Lightweight on purpose; the wrap and footer come from the standard shell
  * so a user landing on a typo'd URL still sees a coherent site.
+ *
+ * Locale: all renderers accept an optional `locale` so the chrome (heading,
+ * back-home link, retraction banner) matches the rest of the site. The
+ * caller is the router's error handler, which threads `getLocale(req)`.
  */
 
 import type { ArticleRow } from "../types";
 import { HttpError } from "../types";
 import { escape } from "../util/html";
 import { shell } from "../templates/shell";
+import { DEFAULT_LOCALE, t, type Locale } from "../i18n";
 
 interface ErrorPageOpts {
   status: number;
   title: string;
   heading: string;
   message: string;
+  locale: Locale;
 }
 
 function errorPage(opts: ErrorPageOpts): Response {
@@ -23,11 +29,12 @@ function errorPage(opts: ErrorPageOpts): Response {
   <h1>${escape(opts.heading)}</h1>
   <p class="lede">${escape(opts.message)}</p>
 </section>
-<p style="margin-top:24px"><a href="/">← 回首页</a></p>`;
+<p style="margin-top:24px"><a href="/">${escape(t(opts.locale, "error.back_home"))}</a></p>`;
   return new Response(
     shell({
       title: `${opts.title} — pai.ink`,
       body,
+      locale: opts.locale,
     }),
     {
       status: opts.status,
@@ -39,31 +46,34 @@ function errorPage(opts: ErrorPageOpts): Response {
   );
 }
 
-export function renderNotFound(message = "页面不存在 / Page not found"): Response {
+export function renderNotFound(message?: string, locale: Locale = DEFAULT_LOCALE): Response {
   return errorPage({
     status: 404,
-    title: "404",
-    heading: "找不到这个页面",
-    message,
+    title: t(locale, "error.404.title"),
+    heading: t(locale, "error.404.heading"),
+    message: message ?? t(locale, "error.404.default"),
+    locale,
   });
 }
 
-export function renderServerError(message = "内部错误 / Internal error"): Response {
+export function renderServerError(message?: string, locale: Locale = DEFAULT_LOCALE): Response {
   return errorPage({
     status: 500,
-    title: "500",
-    heading: "服务出了点问题",
-    message,
+    title: t(locale, "error.500.title"),
+    heading: t(locale, "error.500.heading"),
+    message: message ?? t(locale, "error.500.default"),
+    locale,
   });
 }
 
-export function renderHttpError(err: HttpError): Response {
-  if (err.status === 404) return renderNotFound(err.detail);
+export function renderHttpError(err: HttpError, locale: Locale = DEFAULT_LOCALE): Response {
+  if (err.status === 404) return renderNotFound(err.detail, locale);
   return errorPage({
     status: err.status,
     title: String(err.status),
     heading: err.code,
     message: err.detail,
+    locale,
   });
 }
 
@@ -72,20 +82,21 @@ export function renderHttpError(err: HttpError): Response {
  * the retraction surface still has site nav. Reason text from the D1 row
  * (admin-set via tools/unpublish.py or the future /me retract button).
  */
-export function renderRetracted(row: ArticleRow): Response {
-  const reason = row.retraction_reason || "(未填写原因)";
+export function renderRetracted(row: ArticleRow, locale: Locale = DEFAULT_LOCALE): Response {
+  const reason = row.retraction_reason || t(locale, "verify.no_reason");
   const body = `<section class="page-head">
-  <p class="eyebrow">410 · 撤稿 / Retracted</p>
+  <p class="eyebrow">${escape(t(locale, "error.retracted_eyebrow"))}</p>
   <h1>${escape(row.title || row.slug)}</h1>
 </section>
 <section class="agreement-archived">
-  <p><strong>本文已撤稿。</strong>${escape(reason)}</p>
-  <p>原始 manifest 仍可于 <a href="/verify/${escape(row.uuid)}">详情页</a> 查询，但文章正文不再提供。</p>
+  <p><strong>${escape(t(locale, "error.retracted_strong"))}</strong>${escape(reason)}</p>
+  <p>${t(locale, "error.retracted_manifest_note", { uuid: row.uuid })}</p>
 </section>`;
   return new Response(
     shell({
-      title: `撤稿 / Retracted — pai.ink`,
+      title: t(locale, "error.retracted_title"),
       body,
+      locale,
     }),
     {
       status: 410,

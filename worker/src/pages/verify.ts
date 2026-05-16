@@ -9,6 +9,9 @@
  * Also serves the manifest.json side-route: GET /verify/<uuid>/manifest.json
  * streams the raw manifest bytes verbatim. That's the friendliest URL for
  * scripts because there's no chrome to parse around.
+ *
+ * Locale: row labels + button/link text translate; the manifest content
+ * (skill name, hashes, etc.) is data and stays as-is.
  */
 
 import type { Env, Manifest } from "../types";
@@ -17,17 +20,24 @@ import { getArticleByUuid } from "../db/queries";
 import { getArticleManifest, getArticleManifestBytes } from "../r2";
 import { escape, shortHash } from "../util/html";
 import { shell } from "../templates/shell";
+import { getCurrentUser } from "../util/auth_middleware";
+import { getLocale } from "../util/locale";
+import { t } from "../i18n";
 
 export async function renderVerify(
-  _req: Request,
+  req: Request,
   env: Env,
   uuid: string,
 ): Promise<Response> {
-  const row = await getArticleByUuid(env.DB, uuid);
+  const locale = getLocale(req);
+  const [row, manifest, user] = await Promise.all([
+    getArticleByUuid(env.DB, uuid),
+    getArticleManifest(env.R2_CONTENT, uuid),
+    getCurrentUser(req, env),
+  ]);
   if (!row) {
     throw new HttpError(404, "not_found", `No article with uuid=${uuid}`);
   }
-  const manifest = await getArticleManifest(env.R2_CONTENT, uuid);
   if (!manifest) {
     throw new HttpError(500, "missing_manifest", `R2 manifest missing for uuid=${uuid}`);
   }
@@ -53,39 +63,39 @@ export async function renderVerify(
 
   const contentHash = art.content_sha256 || "";
   const short = shortHash(contentHash);
+  const authorName = author?.display_name || row.author_display_name || t(locale, "verify.anonymous");
 
   const rows: Array<[string, string]> = [
-    ["文章 / Article", `<a href="${articleHref}">${escape(art.title || "")}</a>`],
-    ["分区 / Zone", escape(row.zone)],
-    ["语言 / Language", escape(art.language || "")],
-    ["作者 / Author", escape(author?.display_name || row.author_display_name || "anonymous")],
-    ["Skill", escape(skill.name || "") || "—"],
-    ["Skill 仓库", repoLink],
-    ["Skill commit", commitLink],
-    ["模型 / Model", `<code>${escape(gen.model || "")}</code>`],
-    ["Harness", escape(gen.harness || "") || "—"],
+    [t(locale, "verify.article"), `<a href="${articleHref}">${escape(art.title || "")}</a>`],
+    [t(locale, "verify.zone"), escape(row.zone)],
+    [t(locale, "verify.language"), escape(art.language || "")],
+    [t(locale, "verify.author"), escape(authorName)],
+    [t(locale, "verify.skill"), escape(skill.name || "") || "—"],
+    [t(locale, "verify.skill_repo"), repoLink],
+    [t(locale, "verify.skill_commit"), commitLink],
+    [t(locale, "verify.model"), `<code>${escape(gen.model || "")}</code>`],
   ];
 
   // Optional manifest fields — only show when present (matches static build).
   const apiReqId = gen.api_request_id;
   if (apiReqId) {
-    rows.push(["API request id", `<code>${escape(apiReqId)}</code>`]);
+    rows.push([t(locale, "verify.api_request_id"), `<code>${escape(apiReqId)}</code>`]);
   }
-  rows.push(["授权 / License", `<code>${escape(art.license || "")}</code>`]);
-  rows.push(["发布时间", escape(art.published_at || "") || "—"]);
-  rows.push(["内容哈希", `<code title="${escape(contentHash)}">${escape(short)}</code>`]);
+  rows.push([t(locale, "verify.license"), `<code>${escape(art.license || "")}</code>`]);
+  rows.push([t(locale, "verify.published_at"), escape(art.published_at || "") || "—"]);
+  rows.push([t(locale, "verify.content_hash"), `<code title="${escape(contentHash)}">${escape(short)}</code>`]);
   rows.push([
-    "协议",
+    t(locale, "verify.agreement"),
     `<a href="/agreement/${escape(agreement.version)}">${escape(agreement.version)}</a> · <code title="${escape(
       agreement.sha256,
     )}">${escape(shortHash(agreement.sha256))}</code>`,
   ]);
-  rows.push(["协议接受时间", escape(agreement.accepted_at || "") || "—"]);
+  rows.push([t(locale, "verify.agreement_accepted_at"), escape(agreement.accepted_at || "") || "—"]);
 
   // Retraction notice surfaces above the manifest for visibility.
   const retractedBanner = row.retracted_at
     ? `<section class="agreement-archived">
-  <p><strong>本文已撤稿。</strong>${escape(row.retraction_reason || "(未填写原因)")}</p>
+  <p><strong>${escape(t(locale, "verify.retracted_title"))}</strong>${escape(row.retraction_reason || t(locale, "verify.no_reason"))}</p>
 </section>`
     : "";
 
@@ -93,7 +103,7 @@ export async function renderVerify(
 
   const body: string[] = [
     `<section class="verify-head">
-  <p class="eyebrow">详情 / Details</p>
+  <p class="eyebrow">${escape(t(locale, "verify.title_eyebrow"))}</p>
   <h1>${escape(art.title || "")}</h1>
 </section>`,
     retractedBanner,
@@ -106,23 +116,25 @@ export async function renderVerify(
 
   body.push(
     `<p style="font-size:14px;margin-top:24px">
-  <a href="${articleHref}">→ 阅读文章</a> ·
-  <a href="${manifestHref}">下载 ai-audit.json</a> ·
-  <a href="${exportHref}">下载验证包 (.tar.gz)</a>
+  <a href="${articleHref}">${escape(t(locale, "verify.read_article"))}</a> ·
+  <a href="${manifestHref}">${escape(t(locale, "verify.download_manifest"))}</a> ·
+  <a href="${exportHref}">${escape(t(locale, "verify.download_export"))}</a>
 </p>`,
   );
 
   body.push(
     `<details class="raw">
-  <summary>完整 manifest (raw)</summary>
+  <summary>${escape(t(locale, "verify.raw_manifest"))}</summary>
   <pre>${rawJson}</pre>
 </details>`,
   );
 
   return new Response(
     shell({
-      title: `详情 ${uuid.slice(0, 8)} — pai.ink`,
+      title: `${t(locale, "verify.title")} ${uuid.slice(0, 8)} — pai.ink`,
       body: body.join("\n"),
+      user,
+      locale,
     }),
     {
       status: 200,

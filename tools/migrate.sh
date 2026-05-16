@@ -9,25 +9,30 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Use the wrangler version pinned in worker/node_modules. Bare `npx wrangler`
+# sometimes resolves to wrangler@4 which requires Node 22+; the local pin
+# (3.114.17) supports the Node version this repo was built against.
+WRANGLER="worker/node_modules/.bin/wrangler"
+
 echo '== uploading articles =='
 echo '  -> finance/adm-2026-05-13 (uuid 1758990d-d44a-484c-a47d-14240791d048)'
-wrangler r2 object put paiink-content/articles/1758990d-d44a-484c-a47d-14240791d048/index.html --file content/finance/adm-2026-05-13/index.html --content-type 'text/html; charset=utf-8'
-wrangler r2 object put paiink-content/articles/1758990d-d44a-484c-a47d-14240791d048/ai-audit.json --file content/finance/adm-2026-05-13/ai-audit.json --content-type 'application/json; charset=utf-8'
+$WRANGLER r2 object put paiink-content/articles/1758990d-d44a-484c-a47d-14240791d048/index.html --file content/finance/adm-2026-05-13/index.html --content-type 'text/html; charset=utf-8'
+$WRANGLER r2 object put paiink-content/articles/1758990d-d44a-484c-a47d-14240791d048/ai-audit.json --file content/finance/adm-2026-05-13/ai-audit.json --content-type 'application/json; charset=utf-8'
 echo '  -> finance/heico-2026-05-16 (uuid 9deec278-2fdc-48e4-b122-3cc5c5e2e9df)'
-wrangler r2 object put paiink-content/articles/9deec278-2fdc-48e4-b122-3cc5c5e2e9df/index.html --file content/finance/heico-2026-05-16/index.html --content-type 'text/html; charset=utf-8'
-wrangler r2 object put paiink-content/articles/9deec278-2fdc-48e4-b122-3cc5c5e2e9df/ai-audit.json --file content/finance/heico-2026-05-16/ai-audit.json --content-type 'application/json; charset=utf-8'
+$WRANGLER r2 object put paiink-content/articles/9deec278-2fdc-48e4-b122-3cc5c5e2e9df/index.html --file content/finance/heico-2026-05-16/index.html --content-type 'text/html; charset=utf-8'
+$WRANGLER r2 object put paiink-content/articles/9deec278-2fdc-48e4-b122-3cc5c5e2e9df/ai-audit.json --file content/finance/heico-2026-05-16/ai-audit.json --content-type 'application/json; charset=utf-8'
 echo '  -> finance/otis-worldwide-2026-05-15 (uuid f48fe562-c17f-404f-ad48-4e1a12b2f258)'
-wrangler r2 object put paiink-content/articles/f48fe562-c17f-404f-ad48-4e1a12b2f258/index.html --file content/finance/otis-worldwide-2026-05-15/index.html --content-type 'text/html; charset=utf-8'
-wrangler r2 object put paiink-content/articles/f48fe562-c17f-404f-ad48-4e1a12b2f258/ai-audit.json --file content/finance/otis-worldwide-2026-05-15/ai-audit.json --content-type 'application/json; charset=utf-8'
+$WRANGLER r2 object put paiink-content/articles/f48fe562-c17f-404f-ad48-4e1a12b2f258/index.html --file content/finance/otis-worldwide-2026-05-15/index.html --content-type 'text/html; charset=utf-8'
+$WRANGLER r2 object put paiink-content/articles/f48fe562-c17f-404f-ad48-4e1a12b2f258/ai-audit.json --file content/finance/otis-worldwide-2026-05-15/ai-audit.json --content-type 'application/json; charset=utf-8'
 echo '  -> finance/waste-management-2026-05-14 (uuid 543b34c7-84e4-4eea-9207-e692ed72c657)'
-wrangler r2 object put paiink-content/articles/543b34c7-84e4-4eea-9207-e692ed72c657/index.html --file content/finance/waste-management-2026-05-14/index.html --content-type 'text/html; charset=utf-8'
-wrangler r2 object put paiink-content/articles/543b34c7-84e4-4eea-9207-e692ed72c657/ai-audit.json --file content/finance/waste-management-2026-05-14/ai-audit.json --content-type 'application/json; charset=utf-8'
+$WRANGLER r2 object put paiink-content/articles/543b34c7-84e4-4eea-9207-e692ed72c657/index.html --file content/finance/waste-management-2026-05-14/index.html --content-type 'text/html; charset=utf-8'
+$WRANGLER r2 object put paiink-content/articles/543b34c7-84e4-4eea-9207-e692ed72c657/ai-audit.json --file content/finance/waste-management-2026-05-14/ai-audit.json --content-type 'application/json; charset=utf-8'
 
 echo '== uploading agreements =='
-wrangler r2 object put paiink-content/agreements/agreement-v1.md --file content/_meta/agreement-v1.md --content-type 'text/markdown; charset=utf-8'
-wrangler r2 object put paiink-content/agreements/agreement-v2.md --file content/_meta/agreement-v2.md --content-type 'text/markdown; charset=utf-8'
+$WRANGLER r2 object put paiink-content/agreements/agreement-v1.md --file content/_meta/agreement-v1.md --content-type 'text/markdown; charset=utf-8'
+$WRANGLER r2 object put paiink-content/agreements/agreement-v2.md --file content/_meta/agreement-v2.md --content-type 'text/markdown; charset=utf-8'
 
 echo '== uploading schema mirror =='
-wrangler r2 object put paiink-content/schemas/ai-audit/v1.json --file schemas/ai-audit/v1.json --content-type 'application/json; charset=utf-8'
+$WRANGLER r2 object put paiink-content/schemas/ai-audit/v1.json --file schemas/ai-audit/v1.json --content-type 'application/json; charset=utf-8'
 
 echo '== done =='

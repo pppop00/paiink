@@ -25,15 +25,27 @@ import { renderVerify, renderVerifyManifest } from "./pages/verify";
 import { renderAgreement } from "./pages/agreement";
 import { renderAbout } from "./pages/about";
 import { renderSubmitForm } from "./pages/submit_form";
+import { renderSignup } from "./pages/signup";
+import { renderLogin } from "./pages/login";
+import { renderMe } from "./pages/me";
+import { renderProfile } from "./pages/profile";
 import { renderHttpError, renderNotFound, renderServerError } from "./pages/error";
+import { getLocale } from "./util/locale";
+import { DEFAULT_LOCALE, type Locale } from "./i18n";
 
 import { handleExport } from "./api/export";
-import { getSchemaBytes } from "./r2";
-
-// Stream 3 owns submit. We import lazily so a missing module at edit time
-// doesn't break this file's typecheck — final integration resolves the
-// import statically.
 import { handleSubmit } from "./api/submit";
+import { handleSignup } from "./api/signup";
+import { handleLogin } from "./api/login";
+import { handleLogout } from "./api/logout";
+import {
+  handleCreateToken,
+  handleListTokens,
+  handleRevokeToken,
+} from "./api/tokens";
+import { handleRetract } from "./api/retract";
+import { getCurrentUser } from "./util/auth_middleware";
+import { getSchemaBytes } from "./r2";
 
 const ALLOWED_ORIGINS = new Set([
   "https://www.paiink.com",
@@ -73,7 +85,7 @@ export async function route(
     const resp = await dispatch(req, env, ctx, method, path);
     return applyCommonHeaders(resp, req);
   } catch (err) {
-    return handleError(err, req, path);
+    return handleError(err, req, path, getLocale(req));
   }
 }
 
@@ -114,12 +126,87 @@ async function dispatch(
 
   // -------- GET /submit --------
   if (method === "GET" && (path === "/submit" || path === "/submit/")) {
-    return renderSubmitForm();
+    const user = await getCurrentUser(req, env);
+    return renderSubmitForm(req, env, user);
   }
 
   // -------- GET /about --------
   if (method === "GET" && (path === "/about" || path === "/about/" || path === "/about.html")) {
-    return renderAbout();
+    return renderAbout(req, env);
+  }
+
+  // -------- Auth pages (Phase B) --------
+  if (method === "GET" && (path === "/signup" || path === "/signup/")) {
+    return renderSignup(req, env);
+  }
+  if (method === "GET" && (path === "/login" || path === "/login/")) {
+    return renderLogin(req, env);
+  }
+  if (method === "GET" && (path === "/me" || path === "/me/")) {
+    const user = await getCurrentUser(req, env);
+    if (!user) {
+      // Relative Location so the browser resolves against whatever host it
+      // arrived from (localhost during dev, www.paiink.com in prod). Using
+      // Response.redirect with `new URL("/login", req.url)` produces an
+      // absolute URL pointing at the upstream workers.dev hostname under
+      // --remote, which breaks local browser flow.
+      return new Response(null, { status: 302, headers: { Location: "/login" } });
+    }
+    return renderMe(req, env, user);
+  }
+
+  // -------- GET /u/<handle> --------
+  const mProfile = /^\/u\/([A-Za-z0-9_-]+)\/?$/.exec(path);
+  if (method === "GET" && mProfile) {
+    const viewer = await getCurrentUser(req, env);
+    return renderProfile(req, env, mProfile[1] as string, viewer);
+  }
+
+  // -------- Auth API (Phase B) --------
+  if (method === "POST" && path === "/api/signup") {
+    return handleSignup(req, env);
+  }
+  if (method === "POST" && path === "/api/login") {
+    return handleLogin(req, env);
+  }
+  if (method === "POST" && path === "/api/logout") {
+    return handleLogout(req, env);
+  }
+
+  // -------- /api/me/tokens --------
+  // POST creates, GET lists. Both require an authenticated user (cookie
+  // session — Bearer auth doesn't manage its own tokens).
+  if (
+    (method === "POST" || method === "GET") &&
+    (path === "/api/me/tokens" || path === "/api/me/tokens/")
+  ) {
+    const user = await getCurrentUser(req, env);
+    if (!user) {
+      throw new HttpError(401, "unauthorized", "log in to manage API tokens");
+    }
+    return method === "POST"
+      ? handleCreateToken(req, env, user)
+      : handleListTokens(req, env, user);
+  }
+
+  // -------- DELETE /api/me/tokens/<id> --------
+  const mTokenId = /^\/api\/me\/tokens\/([0-9]+)\/?$/.exec(path);
+  if (method === "DELETE" && mTokenId) {
+    const user = await getCurrentUser(req, env);
+    if (!user) {
+      throw new HttpError(401, "unauthorized", "log in to manage API tokens");
+    }
+    return handleRevokeToken(req, env, user, mTokenId[1] as string);
+  }
+
+  // -------- POST /api/me/articles/<uuid>/retract --------
+  const mRetract = /^\/api\/me\/articles\/([A-Za-z0-9-]+)\/retract\/?$/.exec(path);
+  if (method === "POST" && mRetract) {
+    const user = await getCurrentUser(req, env);
+    if (!user) {
+      throw new HttpError(401, "unauthorized", "log in to retract articles");
+    }
+    return handleRetract(req, env, user, mRetract[1] as string);
   }
 
   // -------- GET /agreement/v1 | v2 --------
@@ -199,22 +286,15 @@ async function dispatch(
 }
 
 function isPhaseBOrLaterRoute(path: string): boolean {
+  // Phase B (auth pages, sessions, tokens, retract) is shipped — those
+  // paths now have live handlers above. Remaining stubs are Phase C
+  // (skills directory, likes) and Phase E (feed, sitemap).
   return (
-    path === "/signup" ||
-    path === "/login" ||
-    path === "/logout" ||
-    path === "/me" ||
-    path.startsWith("/me/") ||
-    path.startsWith("/u/") ||
     path === "/skills" ||
     path.startsWith("/skills/") ||
     path === "/feed.xml" ||
     path === "/sitemap.xml" ||
-    path.startsWith("/api/signup") ||
-    path.startsWith("/api/login") ||
-    path.startsWith("/api/logout") ||
-    path.startsWith("/api/articles/") ||
-    path.startsWith("/api/me/")
+    path.startsWith("/api/articles/")
   );
 }
 
@@ -234,14 +314,18 @@ function applyCommonHeaders(resp: Response, _req: Request): Response {
   // (article.ts sets a custom one with frame-src 'self'). The default
   // matches CSP_POLICY in shell.ts.
   if (!headers.has("content-security-policy")) {
+    // Phase B note: script-src + frame-src include
+    // https://challenges.cloudflare.com so the Turnstile widget can load
+    // on /signup. Keep in sync with CSP_POLICY in templates/shell.ts.
     headers.set(
       "content-security-policy",
       "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://d3js.org; " +
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://d3js.org https://challenges.cloudflare.com; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "img-src 'self' data:; " +
         "font-src 'self' data: https://fonts.gstatic.com; " +
         "connect-src 'self' https://api.paiink.com; " +
+        "frame-src https://challenges.cloudflare.com; " +
         "object-src 'none'; " +
         "base-uri 'self'; " +
         "frame-ancestors 'self'",
@@ -261,7 +345,7 @@ function handleCorsPreflight(req: Request): Response {
     status: 204,
     headers: {
       "access-control-allow-origin": allowed,
-      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
       "access-control-allow-headers": "content-type, authorization",
       "access-control-max-age": "86400",
       vary: "Origin",
@@ -269,7 +353,12 @@ function handleCorsPreflight(req: Request): Response {
   });
 }
 
-function handleError(err: unknown, _req: Request, path: string): Response {
+function handleError(
+  err: unknown,
+  _req: Request,
+  path: string,
+  locale: Locale = DEFAULT_LOCALE,
+): Response {
   // Decide HTML vs JSON by path shape — anything under /api/ or that
   // returns binary explicitly should get JSON; everything else HTML.
   const wantsJson = path.startsWith("/api/") || path.startsWith("/verify/") && path.endsWith("/export");
@@ -285,9 +374,9 @@ function handleError(err: unknown, _req: Request, path: string): Response {
       );
     }
     if (err.status === 404) {
-      return renderNotFound(err.detail);
+      return renderNotFound(err.detail, locale);
     }
-    return renderHttpError(err);
+    return renderHttpError(err, locale);
   }
 
   // Unknown / unexpected error: log and 500.
@@ -298,5 +387,5 @@ function handleError(err: unknown, _req: Request, path: string): Response {
       { status: 500, headers: { "content-type": "application/json" } },
     );
   }
-  return renderServerError();
+  return renderServerError(undefined, locale);
 }

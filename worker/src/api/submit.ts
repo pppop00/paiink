@@ -22,11 +22,15 @@
 import {
   HttpError,
   type Env,
+  type UserRow,
 } from "../types";
 import {
+  findApiTokenUserId,
+  findUserById,
   getOrCreateUserByEmail,
   insertArticle,
 } from "../db/queries";
+import { getCurrentUser } from "../util/auth_middleware";
 import { putArticleHTML, putArticleManifest } from "../r2";
 import { buildManifest } from "../util/manifest";
 import {
@@ -87,14 +91,67 @@ export async function handleSubmit(req: Request, env: Env): Promise<Response> {
   const publishedAtUnix = isoToUnixSec(publishedAt);
   const wordCount = wordCountFromHtml(payload.html);
 
-  // 6. Lazy user creation. Phase A still derives identity from the
-  //    declared email; Phase B will overwrite this with the session
-  //    user. password_hash stays NULL until the user signs up.
-  const user = await getOrCreateUserByEmail(
-    env.DB,
-    payload.email,
-    payload.display_name,
-  );
+  // 6. Resolve author identity. Priority:
+  //      1. Session cookie  → highest trust (browser flow)
+  //      2. Bearer token    → machine flow (AI agents)
+  //      3. Declared email  → unauthenticated fallback (Phase B; Phase D
+  //                           removes this when agreement v3 lands)
+  //    When 1 or 2 wins, the manifest's author.email + author.display_name
+  //    come from the user row, NOT the declared payload. The agreement is
+  //    between the user and the platform — they don't get to lie about
+  //    their account identity.
+  let user: UserRow;
+  let authoredViaSession = false;
+  const sessionUser = await getCurrentUser(req, env);
+  if (sessionUser) {
+    user = sessionUser;
+    authoredViaSession = true;
+  } else {
+    const authz = req.headers.get("Authorization") || "";
+    const bearer = authz.startsWith("Bearer ") ? authz.slice(7).trim() : "";
+    if (bearer) {
+      const tokenUserId = await findApiTokenUserId(env.DB, bearer);
+      if (tokenUserId === null) {
+        throw new HttpError(
+          401,
+          "invalid_token",
+          "Authorization Bearer token is invalid, revoked, or expired",
+        );
+      }
+      const tokenUser = await findUserById(env.DB, tokenUserId);
+      if (!tokenUser || tokenUser.deleted_at !== null) {
+        throw new HttpError(
+          401,
+          "invalid_token",
+          "Authorization Bearer token's owner no longer exists",
+        );
+      }
+      user = tokenUser;
+      authoredViaSession = true;
+    } else {
+      // Lazy user creation from declared email (Phase A fallback).
+      // password_hash stays NULL until the user signs up.
+      if (!payload.email || !payload.display_name) {
+        throw new HttpError(
+          400,
+          "validation",
+          "display_name and email are required when not logged in (no session cookie or Bearer token)",
+        );
+      }
+      user = await getOrCreateUserByEmail(
+        env.DB,
+        payload.email,
+        payload.display_name,
+      );
+    }
+  }
+
+  // Effective author fields baked into the manifest + denormalized D1 row.
+  // When session/token authed, override the declared payload; otherwise
+  // honor what the submitter typed. After the validation gate above,
+  // payload.email/display_name are non-null in the declared-identity path.
+  const effectiveEmail = authoredViaSession ? user.email : (payload.email as string);
+  const effectiveDisplayName = authoredViaSession ? user.display_name : (payload.display_name as string);
 
   // 7. Build the manifest. article.id is the UUID we'll also use as
   //    the D1 uuid column AND the R2 key prefix. Keeping all three in
@@ -116,8 +173,8 @@ export async function handleSubmit(req: Request, env: Env): Promise<Response> {
     model: payload.model,
     harness: payload.harness,
     apiRequestId: payload.api_request_id,
-    email: payload.email,
-    displayName: payload.display_name,
+    email: effectiveEmail,
+    displayName: effectiveDisplayName,
   });
 
   // 8. D1 row first. If this fails the row never existed and no R2
@@ -131,8 +188,8 @@ export async function handleSubmit(req: Request, env: Env): Promise<Response> {
       language: payload.language,
       title: payload.title,
       author_id: user.id,
-      author_email: payload.email,
-      author_display_name: payload.display_name,
+      author_email: effectiveEmail,
+      author_display_name: effectiveDisplayName,
       content_sha256: contentSha,
       word_count: wordCount,
       license: payload.license,
