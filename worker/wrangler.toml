@@ -72,12 +72,24 @@ binding = "KV_RATE_LIMIT"
 id = "b33d670c64324d3a8180c0d89563e1d4"
 preview_id = "b33d670c64324d3a8180c0d89563e1d4"  # share with prod under --remote dev
 
-# Workers Static Assets: CSS, fonts, cursor script, favicon. The
-# directory is committed under worker/static/ and uploaded as part of
-# `wrangler deploy`. Stream 2 will populate it from site/style.css etc.
+# Workers Static Assets: CSS, fonts, cursor script, favicon.
+#
+# Source files live in worker/static/. The `[build] command` below runs
+# `build-assets.mjs` first, which content-hashes each file and emits
+# them into worker/static-dist/ as both `style.<hash>.css` (canonical,
+# cache-busted) and `style.css` (transition fallback for stale HTML
+# caches). The Worker imports `src/asset-manifest.ts` (also generated
+# by the build) to look up the hashed paths.
+#
+# Deploys always serve the hashed names from `worker/static-dist/`.
 [assets]
-directory = "./static"
+directory = "./static-dist"
 binding = "ASSETS"
+
+# Pre-build hook — runs before `wrangler dev` AND `wrangler deploy`.
+# Regenerates content-hashed copies under worker/static-dist/.
+[build]
+command = "node build-assets.mjs"
 
 [vars]
 SITE_URL = "https://www.paiink.com"

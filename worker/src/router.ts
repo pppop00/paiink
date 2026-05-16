@@ -350,7 +350,7 @@ function applyCommonHeaders(resp: Response, _req: Request): Response {
         "img-src 'self' data:; " +
         "font-src 'self' data: https://fonts.gstatic.com; " +
         "connect-src 'self' https://api.paiink.com; " +
-        "frame-src https://challenges.cloudflare.com; " +
+        "frame-src 'self' https://challenges.cloudflare.com; " +
         "object-src 'none'; " +
         "base-uri 'self'; " +
         "frame-ancestors 'self'",

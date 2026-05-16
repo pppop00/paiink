@@ -14,6 +14,7 @@
 
 import { escape } from "../util/html";
 import type { AuthedUser } from "../util/auth_middleware";
+import { ASSET_PATHS } from "../asset-manifest";
 import { DEFAULT_LOCALE, t, type Locale } from "../i18n";
 
 /**
@@ -28,7 +29,7 @@ export const CSP_POLICY =
   "img-src 'self' data:; " +
   "font-src 'self' data: https://fonts.gstatic.com; " +
   "connect-src 'self' https://api.paiink.com; " +
-  "frame-src https://challenges.cloudflare.com; " +
+  "frame-src 'self' https://challenges.cloudflare.com; " +
   "object-src 'none'; " +
   "base-uri 'self'; " +
   "frame-ancestors 'self'";
@@ -271,8 +272,8 @@ export function shell(opts: ShellOptions): string {
 <meta http-equiv="Content-Security-Policy" content="${escape(CSP_POLICY)}">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>${escape(opts.title)}</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="${ASSET_PATHS["favicon.svg"]}" type="image/svg+xml">
+<link rel="stylesheet" href="${ASSET_PATHS["style.css"]}">
 ${extraHead}
 </head>
 <body>

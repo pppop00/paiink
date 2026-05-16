@@ -43,5 +43,5 @@ export async function handleLogout(req: Request, env: Env): Promise<Response> {
     }
   }
 
-  return clearSessionCookie(jsonResponse(200, { ok: true }));
+  return clearSessionCookie(jsonResponse(200, { ok: true }), req);
 }

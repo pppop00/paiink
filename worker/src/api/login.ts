@@ -121,5 +121,6 @@ export async function handleLogin(req: Request, env: Env): Promise<Response> {
       display_name: user.display_name,
     }),
     sessionId,
+    req,
   );
 }

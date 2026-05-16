@@ -125,10 +125,12 @@ export async function renderArticleChrome(
 </html>
 `;
 
-  // CSP differs from the shell — this page legitimately frames another
-  // same-origin URL, so we explicitly allow frame-src 'self'. style-src
-  // also needs 'unsafe-inline' for the <style> block above.
-  const csp = CSP_POLICY + "; frame-src 'self'";
+  // CSP_POLICY already allows `frame-src 'self' https://challenges.cloudflare.com`,
+  // so this page can frame /<zone>/<slug>/article without extra directives.
+  // (Previously appended a second frame-src here, which silently broke the
+  // iframe because CSP picks the FIRST occurrence of any directive and
+  // drops the rest.)
+  const csp = CSP_POLICY;
 
   return new Response(html, {
     status: 200,

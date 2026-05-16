@@ -22,19 +22,41 @@
 export const SESSION_COOKIE = "paiink_sid";
 export const SESSION_MAX_AGE_SEC = 90 * 24 * 3600;
 
-const COOKIE_ATTRS = `HttpOnly; Secure; SameSite=Lax; Path=/`;
+/**
+ * Build the cookie attribute string. `Secure` is conditional on the
+ * request URL: production runs over HTTPS so we want it strictly set,
+ * but local `wrangler dev` serves over plain HTTP on localhost where
+ * some browser versions silently drop Secure cookies (the spec lets
+ * UAs do it; modern Chrome/Firefox usually treat localhost as a
+ * secure context, but Safari and Chromium variants on some platforms
+ * don't). Dropping Secure on http://localhost makes local dev
+ * reliably testable without weakening production.
+ */
+function cookieAttrs(req: Request | null): string {
+  const isHttps = req && new URL(req.url).protocol === "https:";
+  const secure = isHttps ? "Secure; " : "";
+  return `HttpOnly; ${secure}SameSite=Lax; Path=/`;
+}
 
 /**
  * Clone the response (preserving body/status/headers) with a Set-Cookie
  * header appended that installs the given session id. Callers should
  * use this immediately before returning, on the same Response they
  * built for the success path.
+ *
+ * Pass the originating Request so we can pick the right Secure flag.
+ * Backwards-compat: a missing/null request defaults to Secure (the
+ * production posture).
  */
-export function setSessionCookie(response: Response, sessionId: string): Response {
+export function setSessionCookie(
+  response: Response,
+  sessionId: string,
+  req: Request | null = null,
+): Response {
   const headers = new Headers(response.headers);
   headers.append(
     "Set-Cookie",
-    `${SESSION_COOKIE}=${sessionId}; ${COOKIE_ATTRS}; Max-Age=${SESSION_MAX_AGE_SEC}`,
+    `${SESSION_COOKIE}=${sessionId}; ${cookieAttrs(req)}; Max-Age=${SESSION_MAX_AGE_SEC}`,
   );
   return new Response(response.body, {
     status: response.status,
@@ -47,11 +69,14 @@ export function setSessionCookie(response: Response, sessionId: string): Respons
  * Clone the response with a Set-Cookie that immediately expires the
  * session cookie (Max-Age=0). Browsers drop it on receipt.
  */
-export function clearSessionCookie(response: Response): Response {
+export function clearSessionCookie(
+  response: Response,
+  req: Request | null = null,
+): Response {
   const headers = new Headers(response.headers);
   headers.append(
     "Set-Cookie",
-    `${SESSION_COOKIE}=; ${COOKIE_ATTRS}; Max-Age=0`,
+    `${SESSION_COOKIE}=; ${cookieAttrs(req)}; Max-Age=0`,
   );
   return new Response(response.body, {
     status: response.status,

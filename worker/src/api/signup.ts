@@ -269,5 +269,6 @@ export async function handleSignup(req: Request, env: Env): Promise<Response> {
       claimed,
     }),
     sessionId,
+    req,
   );
 }

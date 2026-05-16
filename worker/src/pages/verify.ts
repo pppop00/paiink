@@ -67,7 +67,15 @@ export async function renderVerify(
   const skill = manifest.skill;
   const gen = manifest.generation;
   const author = manifest.author;
-  const agreement = manifest.agreement;
+  // v1-era manifests (predate the agreement block) have no `agreement`
+  // field. The D1 row carries the synthesized version+hash from the
+  // migration, so fall back to it. The fallback also defends against
+  // future manifest shape drift — a missing agreement block won't 500.
+  const agreement = manifest.agreement ?? {
+    version: row.agreement_version,
+    sha256: row.agreement_sha256,
+    accepted_at: "",
+  };
 
   const articleHref = `/${row.zone}/${row.slug}/`;
   const manifestHref = `/verify/${uuid}/manifest.json`;
