@@ -251,15 +251,15 @@ body {
 .article-link .meta .sep { margin: 0 8px; opacity: 0.5; }
 .article-row {
   display: flex;
-  align-items: flex-start;
-  gap: 20px;
+  align-items: center;          /* details + heart center on the title block */
+  gap: 24px;
 }
-.article-row .article-link { flex: 1; }
+.article-row .article-link { flex: 1; padding: 22px 0; }
 .article-side {
   display: flex;
-  flex-direction: column;
-  gap: 40px;
-  padding-top: 30px;
+  flex-direction: row;          /* 详情→ and ❤ inline on the right */
+  align-items: center;
+  gap: 16px;
   white-space: nowrap;
 }
 .article-side .side-link {
@@ -271,8 +271,8 @@ body {
 }
 .article-side .side-link:hover { color: var(--fg); }
 @media (max-width: 480px) {
-  .article-row { flex-direction: column; gap: 8px; }
-  .article-side { flex-direction: row; padding-top: 0; gap: 16px; }
+  .article-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .article-side { gap: 14px; padding-bottom: 14px; }
 }
 
 /* ---------- zone listing page ---------- */
@@ -1191,12 +1191,6 @@ details.manual-fallback[open] > summary { margin-bottom: 18px; }
 }
 .verify-title-row h1 { flex: 1; margin: 0; }
 
-/* Landing "all-zones" deep-link strip (replaces per-zone sections) */
-.zone-nav {
-  margin-top: 48px;
-  padding-top: 28px;
-  border-top: 1px solid var(--hairline);
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-}
+/* (Removed) .zone-nav was a deep-link strip at the bottom of the
+   landing page pointing to /finance/ and /web3/. The masthead nav
+   already has both, so the strip was visual duplication. */

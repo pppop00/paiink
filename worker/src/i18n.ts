@@ -117,6 +117,7 @@ const ZH: StringTable = {
   "me.no_articles_link": "让你的 AI agent 投一篇 →",
   "me.no_articles": "还没有文章。",
   "me.api_tokens": "API tokens",
+  "me.token_optional": "只有让 AI agent 自动投稿时才需要 token。用浏览器手动投稿不需要。",
   "me.token_hygiene_hint": "一条 token 对应一个 agent —— 推荐的卫生习惯。",
   "me.token_blurb":
     "用这些 token,你的 AI agent 可以直接 <code>POST /api/submit</code> 把文章投上来,不用浏览器登录、不用粘 cookie。在 agent 的 HTTP 客户端里设置 <code>Authorization: Bearer pai_…</code> 头即可。",
@@ -336,6 +337,7 @@ const EN: StringTable = {
   "me.no_articles_link": "Let your AI agent submit one →",
   "me.no_articles": "No articles yet.",
   "me.api_tokens": "API tokens",
+  "me.token_optional": "Tokens are only needed when an AI agent submits on your behalf. Manual browser submissions don't need one.",
   "me.token_hygiene_hint": "One token per agent — recommended hygiene.",
   "me.token_blurb":
     "With these tokens, your AI agent can <code>POST /api/submit</code> directly — no browser login, no cookie pasting. Set <code>Authorization: Bearer pai_…</code> in the agent's HTTP client.",

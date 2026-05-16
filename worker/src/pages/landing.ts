@@ -3,14 +3,13 @@
  *
  * Phase C: replaced the two-zone "newest 5 per zone" layout with a
  * single unified "trending" feed ranked by 3-day rolling likes (with a
- * 14-day candidate pool). Per-zone deep links sit below the list.
+ * 14-day candidate pool).
  *
- * KV cache: a 60-second TTL on the SQL result lets the homepage
- * handle bursts cheaply. The cache key segments by locale-language so
- * the EN/ZH copies can diverge if we later want per-language ranking;
- * today we don't filter by language, so all locales hit the same key.
- * Per the plan: "go with TTL-only (no explicit invalidate) — 60s
- * freshness is fine for an MVP".
+ * KV cache: removed. Caching the article-row snapshot in KV makes
+ * like_count appear stale right after a like (the heart flips red but
+ * the count stays at the cached value until TTL). At 4-article scale
+ * the SQL is sub-millisecond; we'll re-add caching only if D1 read
+ * pressure becomes a real problem.
  *
  * Locale: chrome strings come from `t(locale, ...)`. Article titles
  * and authors stay as-is (user data).
@@ -20,7 +19,6 @@ import type { Env } from "../types";
 import {
   listTopByRecentLikes,
   listUserLikedArticleIds,
-  type RankedArticle,
 } from "../db/queries";
 import { escape } from "../util/html";
 import { shell } from "../templates/shell";
@@ -29,46 +27,15 @@ import { getCurrentUser } from "../util/auth_middleware";
 import { getLocale } from "../util/locale";
 import { t } from "../i18n";
 
-/** Cache key for the homepage ranking. See KV cache notes above. */
-const TOP_CACHE_KEY = "top:lang:all";
-/** TTL in seconds for the homepage ranking cache. */
-const TOP_CACHE_TTL = 60;
 /** How many ranked articles to show on the landing. */
 const TOP_LIMIT = 30;
-
-async function loadRanked(env: Env): Promise<RankedArticle[]> {
-  // KV is optional in the type so the Worker still builds without it
-  // configured. If absent, we just hit D1 every request.
-  const kv = env.KV_CACHE;
-  if (kv) {
-    try {
-      const cached = await kv.get(TOP_CACHE_KEY, "json");
-      if (cached && Array.isArray(cached)) {
-        return cached as RankedArticle[];
-      }
-    } catch (e) {
-      console.warn(`[landing] KV get failed: ${(e as Error).message}`);
-    }
-  }
-  const fresh = await listTopByRecentLikes(env.DB, { limit: TOP_LIMIT });
-  if (kv) {
-    try {
-      await kv.put(TOP_CACHE_KEY, JSON.stringify(fresh), {
-        expirationTtl: TOP_CACHE_TTL,
-      });
-    } catch (e) {
-      console.warn(`[landing] KV put failed: ${(e as Error).message}`);
-    }
-  }
-  return fresh;
-}
 
 export async function renderLanding(req: Request, env: Env): Promise<Response> {
   const locale = getLocale(req);
 
   const [user, ranked] = await Promise.all([
     getCurrentUser(req, env),
-    loadRanked(env),
+    listTopByRecentLikes(env.DB, { limit: TOP_LIMIT }),
   ]);
 
   // Bulk-resolve which of these articles the viewer has liked. Skip
@@ -104,14 +71,6 @@ export async function renderLanding(req: Request, env: Env): Promise<Response> {
     parts.push("</ul>");
   }
   parts.push("</section>");
-
-  // Per-zone deep links — the unified ranking replaces the old zone
-  // sections, but readers who want the canonical /finance/ or /web3/
-  // index still need a way to get there.
-  parts.push(`<section class="zone-nav">
-  <a class="more" href="/finance/">${escape(t(locale, "landing.all_zones_finance"))}</a>
-  <a class="more" href="/web3/">${escape(t(locale, "landing.all_zones_web3"))}</a>
-</section>`);
 
   return new Response(
     shell({

@@ -320,6 +320,7 @@ export async function renderMe(
 <section class="me-section">
   <div class="head">
     <h2>${escape(t(locale, "me.api_tokens"))}</h2>
+    <p class="hint">${escape(t(locale, "me.token_optional"))}</p>
   </div>
 
   <form id="create-token-form" class="token-create">
