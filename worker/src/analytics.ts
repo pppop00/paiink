@@ -17,7 +17,7 @@
  * it's a routing key, not a credential.
  */
 
-export const CF_ANALYTICS_TOKEN = "";
+export const CF_ANALYTICS_TOKEN = "1cbdbb0a712f470c99398790a8534831";
 
 export function analyticsBeacon(): string {
   if (!CF_ANALYTICS_TOKEN) return "";

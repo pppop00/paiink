@@ -21,6 +21,7 @@ import { HttpError } from "../types";
 import { renderRetracted } from "./error";
 import { getLocale } from "../util/locale";
 import { t } from "../i18n";
+import { analyticsBeacon } from "../analytics";
 
 export async function renderArticleChrome(
   req: Request,
@@ -121,6 +122,7 @@ export async function renderArticleChrome(
   });
 })();
 </script>
+${analyticsBeacon()}
 </body>
 </html>
 `;
