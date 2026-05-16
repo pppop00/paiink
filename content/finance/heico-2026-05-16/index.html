@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>海科航空（HEI）— 权益研究报告 | 2026-05-15</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@500;600;700&family=Source+Serif+4:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ============================================================
+   CANONICAL CSS — DO NOT MODIFY ANY RULE IN THIS BLOCK
+   ============================================================ */
+:root {
+  --primary:        #1a2c4e;
+  --primary-light:  #2d4570;
+  --accent-green:   #2e7d4f;
+  --accent-red:     #a83232;
+  --accent-amber:   #b8842a;
+  --accent-blue:    #355a8a;
+  --bg:             #f5f3ee;
+  --bg-card:        #ffffff;
+  --bg-header:      #1a2c4e;
+  --text-primary:   #1a1a1a;
+  --text-secondary: #3a3a3a;
+  --text-muted:     #6e6e6e;
+  --border:         #cfc9bd;
+  --shadow:         0 1px 2px rgba(26,44,78,0.06);
+  --shadow-hover:   0 2px 6px rgba(26,44,78,0.10);
+  --tab-active:     #1a2c4e;
+  --kpi-up-bg:      #eef3ec;
+  --kpi-down-bg:    #f5ebea;
+  --serif:          'Source Serif 4', 'Noto Serif SC', Georgia, 'Times New Roman', serif;
+}
+[data-theme="dark"] {
+  --bg:             #0e1620;
+  --bg-card:        #18222e;
+  --bg-header:      #0a121c;
+  --text-primary:   #e8e4dc;
+  --text-secondary: #b8b3a8;
+  --text-muted:     #7c7a72;
+  --border:         #2c3a4d;
+  --shadow:         0 1px 2px rgba(0,0,0,0.30);
+  --shadow-hover:   0 2px 6px rgba(0,0,0,0.50);
+  --tab-active:     #6ea3d8;
+  --kpi-up-bg:      #14241a;
+  --kpi-down-bg:    #2a1717;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.75;
+  transition: background 0.3s, color 0.3s;
+}
+/* --- Header --- */
+.report-header {
+  background: var(--bg-header);
+  color: #fff;
+  padding: 32px 48px 0;
+  border-bottom: 3px solid var(--accent-amber);
+}
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  padding-bottom: 22px;
+}
+.header-left { flex: 1; }
+.company-exchange-badge {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 1px;
+  padding: 2px 9px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #d8d2c1;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.company-name-cn {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.18;
+  margin-bottom: 4px;
+  color: #ffffff;
+}
+.company-name-en {
+  font-size: 12px;
+  color: #b9b3a4;
+  letter-spacing: 0.06em;
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.theme-toggle {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.35);
+  color: #ebe6d8;
+  padding: 4px 12px;
+  border-radius: 1px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+}
+.rating-badge {
+  padding: 5px 16px;
+  border-radius: 1px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+.rating-badge.overweight  { background: var(--accent-green); }
+.rating-badge.neutral     { background: var(--accent-amber); }
+.rating-badge.underweight { background: var(--accent-red);   }
+.header-meta {
+  background: rgba(0,0,0,0.22);
+  padding: 9px 48px;
+  display: flex;
+  gap: 24px;
+  font-size: 11px;
+  color: #c8c2b1;
+  letter-spacing: 0.02em;
+}
+.header-meta span::before { content: "▪ "; color: var(--accent-amber); }
+/* --- Layout --- */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.section {
+  background: var(--bg-card);
+  border-radius: 2px;
+  padding: 26px 32px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.section-title {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+  margin-bottom: 22px;
+  letter-spacing: 0.01em;
+  position: relative;
+}
+.section-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 48px;
+  height: 2px;
+  background: var(--accent-amber);
+}
+[data-theme="dark"] .section-title { color: var(--text-primary); border-bottom-color: var(--border); }
+/* --- Summary section --- */
+.summary-para { font-size: 13.5px; line-height: 1.9; margin-bottom: 14px; color: var(--text-secondary); text-align: justify; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 18px; }
+.highlights-box h4, .risks-box h4 {
+  font-family: var(--serif);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding: 0 0 6px 0;
+  border-radius: 0;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+.highlights-box h4 { color: var(--accent-green); background: transparent; border-bottom-color: var(--accent-green); }
+.risks-box h4      { color: var(--accent-red);   background: transparent; border-bottom-color: var(--accent-red);   }
+[data-theme="dark"] .highlights-box h4 { background: transparent; }
+[data-theme="dark"] .risks-box h4      { background: transparent; }
+.bullet-list { list-style: none; }
+.bullet-list li {
+  font-size: 13px;
+  line-height: 1.75;
+  padding: 7px 0 7px 16px;
+  position: relative;
+  border-bottom: 1px dotted var(--border);
+  color: var(--text-secondary);
+}
+.bullet-list li:last-child { border-bottom: none; }
+.bullet-list li::before {
+  position: absolute;
+  left: 0;
+  top: 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.highlights-box .bullet-list li::before { content: "—"; color: var(--accent-green); }
+.risks-box      .bullet-list li::before { content: "—"; color: var(--accent-red);   }
+.thesis-box {
+  background: var(--primary);
+  color: #f0ece1;
+  padding: 16px 22px 16px 18px;
+  border-radius: 1px;
+  border-left: 3px solid var(--accent-amber);
+  font-size: 13px;
+  line-height: 1.9;
+  margin-top: 22px;
+}
+.thesis-box strong { color: var(--accent-amber); font-family: var(--serif); font-weight: 600; letter-spacing: 0.06em; font-size: 12px; }
+/* --- KPI Cards --- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  border-radius: 2px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  box-shadow: none;
+  background: var(--bg-card);
+  border-left: 3px solid var(--border);
+  transition: box-shadow 0.2s;
+}
+.kpi-card:hover { box-shadow: var(--shadow-hover); }
+.kpi-card.up   { border-left-color: var(--accent-green); background: var(--kpi-up-bg); }
+.kpi-card.down { border-left-color: var(--accent-red);   background: var(--kpi-down-bg); }
+/* neutral-kpi：语义上区别于 up（勿误用绿色暗示「已健康」），视觉上与亏损卡一致（红边+浅红底），避免琥珀色与相邻亏损卡割裂 */
+.kpi-card.neutral-kpi { border-left-color: var(--accent-red); background: var(--kpi-down-bg); }
+.kpi-label  { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; margin-bottom: 8px; }
+.kpi-value  { font-family: var(--serif); font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; letter-spacing: -0.005em; font-variant-numeric: tabular-nums; }
+.kpi-change { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi-change.up   { color: var(--accent-green); }
+.kpi-change.down { color: var(--accent-red);   }
+.kpi-change.neutral-kpi { color: var(--text-secondary); }
+.kpi-sub    { font-size: 11px; color: var(--text-muted); margin-top: 4px; letter-spacing: 0.04em; }
+/* --- Metrics Table --- */
+.metrics-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 22px; font-variant-numeric: tabular-nums; }
+.metrics-table th {
+  background: var(--primary);
+  color: #f0ece1;
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+[data-theme="dark"] .metrics-table th { background: var(--primary-light, #1a3a6e); }
+.metrics-table td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+.metrics-table tr:last-child td { border-bottom: none; }
+.metrics-table tr:hover td { background: rgba(26,44,78,0.04); }
+[data-theme="dark"] .metrics-table tr:hover td { background: rgba(255,255,255,0.04); }
+.metric-up   { color: var(--accent-green) !important; font-weight: 600; }
+.metric-down { color: var(--accent-red)   !important; font-weight: 600; }
+/* --- Trend Cards --- */
+.trend-cards { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.trend-card {
+  border-left: 3px solid var(--accent-green);
+  padding: 11px 16px;
+  border-radius: 0 1px 1px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.trend-card.up   { border-left-color: var(--accent-green); }
+.trend-card.down { border-left-color: var(--accent-green); }
+.trend-card.trend-geo { border-left-color: var(--accent-green); }
+.trend-card-label { font-family: var(--serif); font-weight: 600; font-size: 13px; margin-bottom: 5px; color: var(--text-primary); letter-spacing: 0.02em; }
+.trend-card-text  { font-size: 13px; color: var(--text-secondary); line-height: 1.85; }
+/* --- Tabs --- */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 22px;
+  gap: 0;
+}
+.tab {
+  padding: 8px 18px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.2s;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+.tab.active { color: var(--tab-active); border-bottom-color: var(--accent-amber); font-weight: 600; }
+.tab-panel  { display: none; }
+.tab-panel.active { display: block; }
+/* --- Waterfall Chart Container --- */
+.waterfall-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+#chart-waterfall {
+  width: 100%;
+  height: 320px;
+  min-width: 600px;
+  display: block;
+}
+.waterfall-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 1px;
+  border: 1px solid var(--border);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+/* --- Waterfall Factor Table --- */
+.factor-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 18px; font-variant-numeric: tabular-nums; }
+.factor-table th {
+  background: var(--primary);
+  color: #f0ece1;
+  padding: 9px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+[data-theme="dark"] .factor-table th { background: var(--primary-light, #1a3a6e); }
+.factor-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+.factor-table tr:last-child td { border-bottom: none; }
+/* --- Sankey Container --- */
+.sankey-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+#chart-sankey-actual, #chart-sankey-forecast {
+  width: 100%;
+  height: 380px;
+  min-width: 600px;
+  display: block;
+}
+.sankey-note { font-size: 12.5px; color: var(--text-secondary); line-height: 1.75; margin-top: 12px; }
+/* --- Porter Radar Container --- */
+.porter-wrap {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+#chart-radar-company,
+#chart-radar-industry,
+#chart-radar-forward {
+  width: 300px !important;
+  height: 300px !important;
+  display: block;
+}
+.porter-scores { list-style: none; margin-bottom: 18px; }
+.porter-scores li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dotted var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.porter-scores li:last-child { border-bottom: none; }
+.score-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 1px;
+  color: #fff;
+  text-align: center;
+  line-height: 26px;
+  font-weight: 700;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.score-dot.s1, .score-dot.s2 { background: var(--accent-green); }
+.score-dot.s3               { background: var(--accent-amber); }
+.score-dot.s4, .score-dot.s5 { background: var(--accent-red); }
+.porter-text { font-size: 13px; line-height: 1.9; color: var(--text-secondary); word-break: break-word; }
+/* --- Appendix --- */
+.appendix-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 18px; }
+.appendix-table th {
+  background: var(--primary);
+  color: #f0ece1;
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+[data-theme="dark"] .appendix-table th { background: var(--primary-light, #1a3a6e); }
+.appendix-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); vertical-align: top; word-break: break-word; }
+.appendix-table tr:last-child td { border-bottom: none; }
+.disclaimer-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--text-muted);
+  border-radius: 1px;
+  padding: 14px 18px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.85;
+  margin-top: 18px;
+  letter-spacing: 0.01em;
+}
+.methodology-box {
+  background: var(--bg);
+  border-left: 3px solid var(--accent-blue);
+  padding: 13px 18px;
+  border-radius: 0 1px 1px 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.85;
+  margin-bottom: 16px;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.macro-factor-commentary {
+  margin-top: 20px;
+  border-left: 3px solid var(--accent-green);
+  padding: 13px 18px;
+  background: var(--bg);
+  border-radius: 0 1px 1px 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.9;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.macro-factor-commentary-label {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: 0.06em;
+}
+.macro-factor-commentary-body p { margin: 0 0 0.65em 0; }
+.macro-factor-commentary-body p:last-child { margin-bottom: 0; }
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .two-col  { grid-template-columns: 1fr; }
+  .porter-wrap { grid-template-columns: 1fr; }
+  #chart-radar-company,
+  #chart-radar-industry,
+  #chart-radar-forward { width: 100% !important; height: 260px !important; }
+}
+@media (max-width: 600px) {
+  .report-header { padding: 20px 20px 0; }
+  .header-meta   { padding: 8px 20px; flex-wrap: wrap; gap: 10px; }
+  .container     { padding: 16px 12px; }
+  .section       { padding: 20px 16px; }
+  .kpi-grid      { grid-template-columns: 1fr 1fr; }
+  .header-main   { flex-direction: column; }
+}
+/* ============================================================ END CANONICAL CSS ============================================================ */
+</style>
+</head>
+<body>
+
+<!-- ========== HEADER ========== -->
+<div class="report-header">
+  <div class="header-main">
+    <div class="header-left">
+      <div class="company-exchange-badge">NYSE · 航空航天与防务</div>
+      <div class="company-name-cn">海科航空</div>
+      <div class="company-name-en">HEICO Corporation · HEI</div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" onclick="toggleTheme()">☀ / ☾ 切换主题</button>
+      <!-- rating-badge class must be one of: overweight / neutral / underweight -->
+      <div class="rating-badge hold">中性偏积极</div>
+    </div>
+  </div>
+  <div class="header-meta">
+    <span>2026-05-15</span>
+    <span>数据来源：FY2025 10-K、FY2026 Q1 10-Q/业绩稿、公司公告</span>
+    <span>由 Equity Research Skill 生成</span>
+  </div>
+</div>
+<!-- ========== END HEADER ========== -->
+
+<div class="container">
+
+  <!-- ===== SECTION 1: 投资摘要 ===== -->
+  <div class="section" id="section-summary">
+    <div class="section-title">一、投资摘要</div>
+
+    <!-- 4段投资摘要，每段160-200字；第2段必须体现 edge_insights.json 的非共识洞察 -->
+    <p class="summary-para">HEICO 是美国航空售后零部件与防务电子领域的复合型并购平台。FY2025 净销售额44.85亿美元，同比增长16.3%；归母净利润6.90亿美元，同比增长34.3%，利润弹性明显快于收入。</p>
+    <p class="summary-para">业务结构的关键是双引擎：Flight Support Group 贡献约69.5%收入，受益于商用航空维修、替代件和航材周转；Electronic Technologies Group 贡献约31.5%，面向防务、航天、医疗和高可靠电子。</p>
+    <p class="summary-para">最新中期披露显示动量尚未结束。FY2026 Q1 收入11.79亿美元，同比增约14.9%；归母净利润1.90亿美元，同比增约36.1%。Q2 尚未披露实绩，公司计划在2026-05-27盘后发布。</p>
+    <!-- 第4段：行业内份额/细分赛道/口碑与认可度/主要运营地与收入来源地（160-200字）；见 news_intel industry_position + financial_analysis summary_para_4 -->
+    <p class="summary-para">本报告的核心判断是：HEICO 基本面仍强，但市场定价已把“并购复利+航空后市场韧性”放进较高预期。投资上应跟踪现金转化、并购杠杆、FSG 售后需求和 ETG 订单质量。</p>
+
+    <div class="two-col">
+      <div class="highlights-box">
+        <h4>核心亮点</h4>
+        <ul class="bullet-list">
+          <!-- 填入 3-5 条，每条 <li>{{内容}}</li> -->
+          <li>FY2025 收入44.85亿美元、同比+16.3%，FSG 与 ETG 两大分部均实现双位数增长。</li>
+<li>FY2025 归母净利润6.90亿美元、同比+34.3%，EPS 从3.67美元升至4.90美元。</li>
+<li>自由现金流8.61亿美元，FCF 利润率19.2%，现金转化率约124.8%。</li>
+<li>FY2026 Q1 收入和归母净利润继续分别同比增长约14.9%和36.1%。</li>
+        </ul>
+      </div>
+      <div class="risks-box">
+        <h4>主要风险</h4>
+        <ul class="bullet-list">
+          <!-- 填入 3-5 条，每条 <li>{{内容}}</li> -->
+          <li>估值对并购复利和航空售后需求的容错率不高，增长放缓可能引发倍数回落。</li>
+<li>航空材料和电子元件供应链约束可能影响交付、库存和毛利率。</li>
+<li>并购标的竞争升温会抬高收购价格，削弱未来投资回报率。</li>
+<li>防务电子项目节奏、预算拨款和客户集中订单可能造成季度波动。</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="thesis-box">
+      <strong>投资逻辑：</strong>HEICO 不是单纯航空周期股，而是用认证零部件、利基电子和纪律性并购形成复利平台。FY2025 与 FY2026 Q1 已证明经营杠杆仍在，但估值端需要持续的现金转化和低失误并购来支撑。
+    </div>
+  </div>
+  <!-- ===== END SECTION 1 ===== -->
+
+  <!-- ===== SECTION 2: 财务概览 ===== -->
+  <div class="section" id="section-financials">
+    <div class="section-title">二、财务概览</div>
+
+    <!-- KPI Grid: 必须恰好 4 张卡片，顺序固定 -->
+    <div class="kpi-grid">
+
+      <!-- Card 1: 营业收入 -->
+      <div class="kpi-card up">
+        <div class="kpi-label">营业收入</div>
+        <div class="kpi-value">44.85亿美元</div>
+        <div class="kpi-change up">+16.3% YoY</div>
+        <div class="kpi-sub">2025财年</div>
+      </div>
+
+      <!-- Card 2: 归母净利润 -->
+      <div class="kpi-card up">
+        <div class="kpi-label">归母净利润</div>
+        <div class="kpi-value">6.90亿美元</div>
+        <div class="kpi-change up">+34.3% YoY</div>
+        <div class="kpi-sub">2025财年</div>
+      </div>
+
+      <!-- Card 3: 自由现金流 -->
+      <div class="kpi-card up">
+        <div class="kpi-label">自由现金流（FCF）</div>
+        <div class="kpi-value">8.61亿美元</div>
+        <div class="kpi-change up">+40.3% YoY</div>
+        <div class="kpi-sub">2025财年</div>
+      </div>
+
+      <!-- Card 4: 净利率 -->
+      <div class="kpi-card up">
+        <div class="kpi-label">净利率</div>
+        <div class="kpi-value">4.90美元</div>
+        <div class="kpi-change up">+33.5% YoY</div>
+        <div class="kpi-sub">vs 上年 3.67美元</div>
+      </div>
+
+    </div>
+    <!-- END KPI Grid -->
+
+    <!-- 指标明细表 -->
+    <table class="metrics-table">
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>FY2025（当年）</th>
+          <th>FY2024（上年）</th>
+          <th>同比变动</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 每行格式：
+          <tr>
+            <td>指标名称</td>
+            <td>当年值</td>
+            <td>上年值</td>
+            <td class="metric-up 或 metric-down">±变动</td>
+          </tr>
+          必须包含以下行（按此顺序）：
+          毛利率 / 营业利润率 / 净利率 / ROE / ROA / 资产负债率 / 利息保障倍数 / 每股收益（EPS）/ 自由现金流利润率
+        -->
+        <tr><td>毛利率</td><td>39.8%</td><td>38.9%</td><td class="metric-up">改善</td></tr>
+<tr><td>营业利润率</td><td>22.7%</td><td>21.4%</td><td class="metric-up">改善</td></tr>
+<tr><td>净利率</td><td>15.4%</td><td>13.3%</td><td class="metric-up">显著改善</td></tr>
+<tr><td>ROE</td><td>15.8%</td><td>13.9%</td><td class="metric-up">改善</td></tr>
+<tr><td>ROA</td><td>8.1%</td><td>6.8%</td><td class="metric-up">改善</td></tr>
+<tr><td>资产负债率</td><td>43.0%</td><td>46.5%</td><td class="metric-up">改善</td></tr>
+<tr><td>利息保障倍数</td><td>7.8x</td><td>5.5x</td><td class="metric-up">显著改善</td></tr>
+<tr><td>每股收益（EPS）</td><td>4.90美元</td><td>3.67美元</td><td class="metric-up">显著改善</td></tr>
+<tr><td>自由现金流利润率</td><td>19.2%</td><td>15.9%</td><td class="metric-up">改善</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 趋势分析：固定 5 张 trend-card；左边框均为绿色（up/down/trend-geo 仅作可选语义类，不再改颜色） -->
+    <div class="trend-cards">
+      <div class="trend-card up">
+        <div class="trend-card-label">归母净利润趋势</div>
+        <div class="trend-card-text">FY2025 归母净利润同比增长34.3%，快于收入16.3%的增速，主要来自 FSG 与 ETG 同时扩张、SG&A 费用率改善以及利息费用下降。</div>
+      </div>
+      <div class="trend-card up">
+        <div class="trend-card-label">净利率趋势</div>
+        <div class="trend-card-text">净利率由 FY2024 的13.3%升至 FY2025 的15.4%，说明收购整合、售后航材需求与电子业务组合仍在释放经营杠杆。</div>
+      </div>
+      <div class="trend-card up">
+        <div class="trend-card-label">自由现金流趋势</div>
+        <div class="trend-card-text">自由现金流从6.14亿美元增至8.61亿美元，FCF 利润率升至19.2%，现金转化率达到124.8%，给并购、降杠杆与分红提供余地。</div>
+      </div>
+      <div class="trend-card up">
+        <div class="trend-card-label">最新经营更新</div>
+        <div class="trend-card-text">截至 FY2026 第一季度（2026-01-31，10-Q 于 2026-02-27提交），净销售额11.79亿美元，同比增约14.9%；归母净利润1.90亿美元，同比增约36.1%。这不是重复 FY2025 对 FY2024 的全年比较，而是显示进入 FY2026 后售后航材与防务电子需求仍保持正向动量。</div>
+      </div>
+      <div class="trend-card trend-geo">
+        <div class="trend-card-label">地区收入结构</div>
+        <div class="trend-card-text">FY2025 收入以美国市场为主，约28.26亿美元、占63%；国际收入约16.59亿美元、占37%。地域披露显示需求不是单一航空公司或单一国家驱动，但美国防务、商用航空维修和 OEM 供应链仍是核心锚。</div>
+      </div>
+    </div>
+  </div>
+  <!-- ===== END SECTION 2 ===== -->
+
+  <!-- ===== SECTION 3: 收入预测 ===== -->
+  <div class="section" id="section-prediction">
+    <div class="section-title">三、收入预测（宏观因子模型）</div>
+
+    <div class="waterfall-meta">
+      φ（市场磨损因子）= 0.92 &nbsp;|&nbsp; 置信度：中高 &nbsp;|&nbsp; 模型：宏观因子模型 v1.0 &nbsp;|&nbsp; 预测财年：FY2026E
+    </div>
+
+    <div class="waterfall-wrap">
+      <svg id="chart-waterfall"></svg>
+    </div>
+
+    <!-- 因子明细表 -->
+    <table class="factor-table">
+      <thead>
+        <tr>
+          <th>因子</th>
+          <th>宏观变化（%）</th>
+          <th>β系数</th>
+          <th>φ值</th>
+          <th>调整幅度（%）</th>
+          <th>方向</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 格式：<tr><td>因子名</td><td>宏观变化</td><td>β</td><td>φ</td><td>调整幅度</td><td class="metric-up/down">正/负向</td></tr> -->
+        <tr><td>US policy rate</td><td>5.25pp</td><td>4.5pp</td><td>+0.2pp</td></tr>
+<tr><td>US real GDP growth</td><td>2.8pp</td><td>2.0pp</td><td>-0.1pp</td></tr>
+<tr><td>US inflation</td><td>3.0pp</td><td>2.6pp</td><td>+0.1pp</td></tr>
+<tr><td>USD index</td><td>104.0%</td><td>102.0%</td><td>+0.1pp</td></tr>
+<tr><td>Jet fuel / oil cost</td><td>80.0%</td><td>78.0%</td><td>+0.0pp</td></tr>
+<tr><td>Air travel / aftermarket demand proxy</td><td>100.0index</td><td>104.0index</td><td>+0.9pp</td></tr>
+      </tbody>
+    </table>
+
+    <div class="macro-factor-commentary">
+      <div class="macro-factor-commentary-label">宏观因子传导阐释</div>
+      <div class="macro-factor-commentary-body">宏观层面，利率下行和航空维修需求正常化对 HEICO 偏正面，GDP 放缓和燃油成本对终端航空客户的预算压力形成抵消。模型将宏观净贡献设为约+1.2个百分点，主要来自航空售后需求与资金成本改善。</div>
+    </div>
+
+    <div class="disclaimer-box" style="margin-top:16px;">
+      预测数据为概率性估计，仅供参考，不构成投资建议。本报告中的收入预测基于宏观因子量化模型，使用行业敏感度系数（β）及市场磨损因子（φ = 0.92），结合公开宏观经济预测数据及公司特定情报生成。实际结果可能与预测存在重大差异。
+    </div>
+  </div>
+  <!-- ===== END SECTION 3 ===== -->
+
+  <!-- ===== SECTION 4: 收入流向分析 ===== -->
+  <div class="section" id="section-sankey">
+    <div class="section-title">四、收入流向分析（Sankey 桑基图）</div>
+
+    <div class="tab-bar" id="sankey-tabs">
+      <div class="tab active" onclick="switchTab('sankey','actual',this)">FY2025 实际</div>
+      <div class="tab"        onclick="switchTab('sankey','forecast',this)">FY2026E 预测</div>
+    </div>
+
+    <div class="tab-panel active" id="sankey-panel-actual">
+      <div class="sankey-wrap">
+        <svg id="chart-sankey-actual"></svg>
+      </div>
+    </div>
+    <div class="tab-panel" id="sankey-panel-forecast">
+      <div class="sankey-wrap">
+        <svg id="chart-sankey-forecast"></svg>
+      </div>
+    </div>
+
+    <p class="sankey-note">FY2025 收入44.85亿美元流向26.99亿美元销售成本和17.86亿美元毛利；SG&A 后营业利润10.19亿美元，归母净利润6.90亿美元。FY2026E 按17.0%收入增长和近似利润率外推，重点不是单一预测值，而是检验收入增长是否继续转化为自由现金流。</p>
+  </div>
+  <!-- ===== END SECTION 4 ===== -->
+
+  <!-- ===== SECTION 5: 波特五力分析 ===== -->
+  <div class="section" id="section-porter">
+    <div class="section-title">五、波特五力分析</div>
+
+    <div class="tab-bar" id="porter-tabs">
+      <div class="tab active" onclick="switchTab('porter','company',this)">公司层面</div>
+      <div class="tab"        onclick="switchTab('porter','industry',this)">行业层面</div>
+      <div class="tab"        onclick="switchTab('porter','forward',this)">前景展望</div>
+    </div>
+
+    <!-- Tab: 公司层面 -->
+    <div class="tab-panel active" id="porter-panel-company">
+      <div class="porter-wrap">
+        <div>
+          <canvas id="chart-radar-company"></canvas>
+        </div>
+        <div>
+          <ul class="porter-scores" id="scores-company">
+            <!-- 5 个 li：供应商议价能力、买方议价能力、新进入者威胁、替代品威胁、行业竞争强度；占位符见下方填充规则，勿删本行注释或引入未闭合的 HTML 注释 -->
+            <li><span>供应商</span><strong>3</strong></li><li><span>买方</span><strong>2</strong></li><li><span>新进入者</span><strong>2</strong></li><li><span>替代品</span><strong>2</strong></li><li><span>竞争</span><strong>3</strong></li>
+          </ul>
+          <div class="porter-text"><ul style="margin:0;padding-left:1.25em;"><li>经QC合议，维持供应商议价能力为3分。HEICO 采购链涉及适航材料与高可靠电子元件，供应约束会影响成本和交期，但多品类采购与长期供应关系降低单点风险。</li><li>经QC合议，维持买方议价能力为2分。航空公司、MRO、OEM 与防务客户专业度高，但认证替代件的停场成本优势削弱客户单纯压价能力。</li><li>经QC合议，维持新进入者威胁为2分。FAA/PMA 认证、客户验证周期和产品责任门槛较高，外部新进入者难以快速复制 HEICO 的长尾件库。</li><li>经QC合议，维持替代品威胁为2分。原厂件是主要替代，但在价格和交付周期上常不占优，非认证方案又难以进入安全关键应用。</li><li>经QC合议，维持行业竞争强度为3分。细分零部件竞争存在，收购资产价格也在上升；HEICO 通过利基品类和分散客户降低正面竞争强度。</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: 行业层面 -->
+    <div class="tab-panel" id="porter-panel-industry">
+      <div class="porter-wrap">
+        <div>
+          <canvas id="chart-radar-industry"></canvas>
+        </div>
+        <div>
+          <ul class="porter-scores" id="scores-industry">
+            <li><span>供应商</span><strong>3</strong></li><li><span>买方</span><strong>3</strong></li><li><span>新进入者</span><strong>3</strong></li><li><span>替代品</span><strong>2</strong></li><li><span>竞争</span><strong>4</strong></li>
+          </ul>
+          <div class="porter-text"><ul style="margin:0;padding-left:1.25em;"><li>经QC合议，维持供应商议价能力为3分。行业上游材料、发动机相关件和高可靠电子元件仍可能紧张，供应商议价处于中位偏高。</li><li>经QC合议，维持买方议价能力为3分。大型航空和防务客户采购能力强，但适航认证、可靠性与停场成本限制其只按最低价选择。</li><li>经QC合议，维持新进入者威胁为3分。利基件企业可进入单点市场，但规模化、认证和渠道信任仍需要长周期投入。</li><li>经QC合议，维持替代品威胁为2分。安全关键硬件的替代路径少，数字化维护更多改变节奏而非替代认证零件。</li><li>经QC合议，维持行业竞争强度为4分。OEM 售后、独立 MRO、电子子系统厂商与并购平台争夺同一预算和标的，竞争偏强。</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: 前景展望 -->
+    <div class="tab-panel" id="porter-panel-forward">
+      <div class="porter-wrap">
+        <div>
+          <canvas id="chart-radar-forward"></canvas>
+        </div>
+        <div>
+          <ul class="porter-scores" id="scores-forward">
+            <li><span>供应商</span><strong>3</strong></li><li><span>买方</span><strong>3</strong></li><li><span>新进入者</span><strong>3</strong></li><li><span>替代品</span><strong>3</strong></li><li><span>竞争</span><strong>4</strong></li>
+          </ul>
+          <div class="porter-text"><ul style="margin:0;padding-left:1.25em;"><li>经QC合议，维持供应商议价能力为3分。若航空产能瓶颈延续，供应商仍能通过交期和库存要求影响利润节奏。</li><li>经QC合议，维持买方议价能力为3分。客户会更重视替代件降本，同时也可能要求价格回馈，因此议价回到中位。</li><li>经QC合议，维持新进入者威胁为3分。高估值会吸引资本进入航空后市场，但认证和客户信任仍是主要限制。</li><li>经QC合议，维持替代品威胁为3分。预测性维护和寿命延长方案会改变部分需求节奏，但对认证硬件的替代有限。</li><li>经QC合议，维持行业竞争强度为4分。未来并购标的和防务电子项目竞争会更激烈，现金纪律与整合效率成为胜负手。</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- ===== END SECTION 5 ===== -->
+
+  <!-- ===== SECTION 6: 附录 ===== -->
+  <div class="section" id="section-appendix">
+    <div class="section-title">附录</div>
+
+    <p style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px;">数据来源</p>
+    <table class="appendix-table">
+      <thead><tr><th>来源类型</th><th>具体来源</th><th>数据日期</th><th>置信度</th></tr></thead>
+      <tbody>
+        <tr><td>FY2025 10-K</td><td>收入、利润、现金流、资产负债表</td><td>SEC EDGAR / HEICO Annual Report</td></tr>
+<tr><td>FY2026 Q1 10-Q / earnings release</td><td>最新中期收入、净利润、分部动量</td><td>SEC EDGAR / company release</td></tr>
+<tr><td>HEICO investor release calendar</td><td>FY2026 Q2 计划披露日期</td><td>HEICO Investor Relations</td></tr>
+<tr><td>Public market data</td><td>估值背景与交易日行情</td><td>仅用于背景，不写入审计数值</td></tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:13px;font-weight:700;color:var(--text-primary);margin:16px 0 10px;">预测模型方法论</p>
+    <div class="methodology-box">
+      <strong>预测公式：</strong><br>
+      预测营收增长率 = 基准增长率 + Σ（宏观因子变化% × β<sub>sector</sub> × φ）+ 公司特定调整项<br><br>
+      <strong>参数：</strong>φ = 0.92（市场磨损因子）| 置信度：中高<br><br>
+      模型以 FY2025 实际收入增速为基线，叠加航空售后需求、利率路径、GDP、通胀、美元指数和油价等宏观变量，再加入公司特定的并购整合与高基数折减。所有财务比率优先来自 SEC 文件并由本地 JSON 计算，卡片数字与报告数字共用同一来源。
+    </div>
+
+    <div class="disclaimer-box">
+      <strong>免责声明：</strong>本报告由 Equity Research Skill 自动生成，仅供参考，不构成任何投资建议或要约。报告中的预测数据基于量化模型及公开信息，存在重大不确定性，实际结果可能与预测存在重大差异。投资者在做出任何投资决策前应自行进行独立研究，并充分了解相关风险。本报告的作者及生成工具不对任何基于本报告的投资损失承担责任。
+    </div>
+  </div>
+  <!-- ===== END SECTION 6 ===== -->
+
+</div><!-- end .container -->
+
+<script>
+/* ============================================================
+   LOCKED JAVASCRIPT — COPY VERBATIM, ONLY REPLACE DATA VARIABLES
+   ============================================================ */
+
+// ---------- Theme Toggle ----------
+function toggleTheme() {
+  const html = document.documentElement;
+  html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  redrawAllCharts();
+}
+
+// ---------- Tab Switcher ----------
+function switchTab(group, panelId, clickedTab) {
+  document.querySelectorAll('#' + group + '-tabs .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('[id^="' + group + '-panel-"]').forEach(p => p.classList.remove('active'));
+  clickedTab.classList.add('active');
+  document.getElementById(group + '-panel-' + panelId).classList.add('active');
+}
+
+// ---------- Theme Colors Helper ----------
+function themeColor(lightVal, darkVal) {
+  return document.documentElement.dataset.theme === 'dark' ? darkVal : lightVal;
+}
+
+// ============================================================
+// DATA VARIABLES — REPLACE ONLY THE VALUES BELOW THIS LINE
+// ============================================================
+
+// --- Waterfall Data ---
+// UNITS (P0): Every start/end/value is a PERCENTAGE POINT for the revenue-GROWTH bridge
+// (e.g. -3.0 => -3.0%). The script appends "%" — do NOT pass decimals like 0.03 for 3%.
+// FORBIDDEN: base_revenue, revenue in $M, or any dollar bridge — Section IV Sankey only.
+// Build from prediction_waterfall.json: baseline_growth_pct, macro_adjustment_pct,
+// company_specific_adjustment_pct, predicted_revenue_growth_pct (per-factor bars only if still in %).
+// Each bar: { label, start, end, value, type }
+// type: "baseline" | "positive" | "negative" | "result"
+const waterfallData = [{"label": "FY2025基线", "type": "baseline", "value": 16.3, "start": 0.0, "end": 16.3}, {"label": "宏观净贡献", "type": "positive", "value": 1.2, "start": 16.3, "end": 17.5}, {"label": "并购/高基数折减", "type": "negative", "value": -0.5, "start": 17.5, "end": 17.0}, {"label": "FY2026E", "type": "result", "value": 17.0, "start": 0.0, "end": 17.0}];
+// Example:
+// [
+//   { label: "基准增长", start: 0,   end: 4.2,  value: 4.2,  type: "baseline"  },
+//   { label: "利率环境", start: 4.2, end: 7.8,  value: 3.6,  type: "positive"  },
+//   { label: "关税风险", start: 7.8, end: 6.1,  value: -1.7, type: "negative"  },
+//   { label: "公司特定", start: 6.1, end: 8.4,  value: 2.3,  type: "positive"  },
+//   { label: "预测结果", start: 0,   end: 8.4,  value: 8.4,  type: "result"    }
+// ]
+
+// --- Sankey Actual Data ---
+const sankeyActualData = {"nodes": [{"name": "收入"}, {"name": "销售成本"}, {"name": "毛利润"}, {"name": "SG&A"}, {"name": "营业利润"}, {"name": "利息税项少数权益"}, {"name": "归母净利润"}], "links": [{"source": 0, "target": 1, "value": 2698.58}, {"source": 0, "target": 2, "value": 1786.464}, {"source": 2, "target": 3, "value": 767.466}, {"source": 2, "target": 4, "value": 1018.998}, {"source": 4, "target": 5, "value": 328.613}, {"source": 4, "target": 6, "value": 690.385}]};
+// Example:
+// {
+//   nodes: [
+//     {name:"营业收入"},{name:"营业成本"},{name:"毛利润"},
+//     {name:"销售费用"},{name:"管理费用"},{name:"研发费用"},
+//     {name:"营业利润"},{name:"税及其他"},{name:"净利润"}
+//   ],
+//   links: [
+//     {source:0,target:1,value:250.5},{source:0,target:2,value:480.3},
+//     {source:2,target:3,value:85.1},{source:2,target:4,value:62.4},
+//     {source:2,target:5,value:45.0},{source:2,target:6,value:287.8},
+//     {source:6,target:7,value:52.3},{source:6,target:8,value:235.5}
+//   ]
+// }
+
+// --- Sankey Forecast Data ---
+const sankeyForecastData = {"nodes": [{"name": "收入"}, {"name": "销售成本"}, {"name": "毛利润"}, {"name": "SG&A"}, {"name": "营业利润"}, {"name": "利息税项少数权益"}, {"name": "归母净利润"}], "links": [{"source": 0, "target": 1, "value": 3158.996}, {"source": 0, "target": 2, "value": 2088.505}, {"source": 2, "target": 3, "value": 907.817}, {"source": 2, "target": 4, "value": 1180.688}, {"source": 4, "target": 5, "value": 372.573}, {"source": 4, "target": 6, "value": 808.115}]};
+// Same structure as sankeyActualData
+
+// --- Porter Radar Data ---
+// Score order must be: [供应商议价能力, 买方议价能力, 新进入者威胁, 替代品威胁, 行业竞争强度]
+// Score semantics: 1-2 = 低威胁/最好/绿色；3 = 中性/琥珀色；4-5 = 高威胁/最糟/红色。
+const porterScores = {
+  company:  [3, 2, 2, 2, 3],   // e.g. [3, 2, 4, 3, 4]
+  industry: [3, 3, 3, 2, 4],
+  forward:  [3, 3, 3, 3, 4]
+};
+
+// ============================================================
+// CHART RENDERING — DO NOT MODIFY BELOW THIS LINE
+// ============================================================
+
+// --- Waterfall Chart (D3) ---
+function drawWaterfall() {
+  const el = document.getElementById('chart-waterfall');
+  if (!el || !waterfallData.length) return;
+  d3.select(el).selectAll('*').remove();
+
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const textColor  = isDark ? '#b8b3a8' : '#3a3a3a';
+  const gridColor  = isDark ? '#2c3a4d' : '#cfc9bd';
+  const colorPos   = '#2e7d4f';
+  const colorNeg   = '#a83232';
+  const colorBase  = '#355a8a';
+  const colorRes   = '#1a2c4e';
+
+  const rect    = el.parentElement.getBoundingClientRect();
+  const W       = Math.max(rect.width || 600, 600);
+  const H       = 320;
+  const margin  = { top: 30, right: 30, bottom: 60, left: 60 };
+  const innerW  = W - margin.left - margin.right;
+  const innerH  = H - margin.top  - margin.bottom;
+
+  const svg = d3.select(el)
+    .attr('width',  W)
+    .attr('height', H);
+
+  const g = svg.append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const allVals  = waterfallData.flatMap(d => [d.start, d.end]);
+  const [minV, maxV] = [Math.min(...allVals), Math.max(...allVals)];
+  const pad    = (maxV - minV) * 0.15 || 1;
+  const yDomain = [minV - pad, maxV + pad];
+
+  const x = d3.scaleBand().domain(waterfallData.map(d => d.label)).range([0, innerW]).padding(0.35);
+  const y = d3.scaleLinear().domain(yDomain).range([innerH, 0]);
+
+  // Grid
+  g.append('g').attr('class', 'grid')
+    .call(d3.axisLeft(y).tickSize(-innerW).tickFormat(''))
+    .selectAll('line').attr('stroke', gridColor).attr('stroke-dasharray', '3,3');
+  g.select('.grid .domain').remove();
+
+  // Zero line
+  g.append('line')
+    .attr('x1', 0).attr('x2', innerW)
+    .attr('y1', y(0)).attr('y2', y(0))
+    .attr('stroke', gridColor).attr('stroke-width', 1.5);
+
+  // Axes
+  g.append('g').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(x))
+    .selectAll('text').attr('fill', textColor).attr('font-size', 11)
+    .attr('transform', 'rotate(-25)').attr('text-anchor', 'end');
+  g.append('g').call(d3.axisLeft(y).ticks(6).tickFormat(d => d + '%'))
+    .selectAll('text').attr('fill', textColor).attr('font-size', 11);
+  g.selectAll('.domain').attr('stroke', gridColor);
+  g.selectAll('.tick line').attr('stroke', gridColor);
+
+  // Y-axis label
+  svg.append('text')
+    .attr('transform', `rotate(-90)`)
+    .attr('x', -(H / 2)).attr('y', 16)
+    .attr('text-anchor', 'middle')
+    .attr('fill', textColor).attr('font-size', 11)
+    .text('增长率 (%)');
+
+  // Bars
+  const tooltip = d3.select('body').select('#wf-tooltip').empty()
+    ? d3.select('body').append('div').attr('id','wf-tooltip')
+        .style('position','fixed').style('background','rgba(26,44,78,0.92)')
+        .style('color','#fff').style('padding','8px 12px').style('border-radius','2px')
+        .style('font-size','12px').style('pointer-events','none').style('opacity',0)
+    : d3.select('#wf-tooltip');
+
+  waterfallData.forEach(d => {
+    const barColor = d.type === 'baseline' ? colorBase
+                   : d.type === 'result'   ? colorRes
+                   : d.value >= 0          ? colorPos : colorNeg;
+    const barY = y(Math.max(d.start, d.end));
+    const barH = Math.abs(y(d.start) - y(d.end));
+
+    g.append('rect')
+      .attr('x', x(d.label)).attr('y', barY)
+      .attr('width', x.bandwidth()).attr('height', Math.max(barH, 1))
+      .attr('fill', barColor).attr('rx', 3)
+      .on('mouseover', (event) => {
+        tooltip.style('opacity', 1)
+          .html(`<strong>${d.label}</strong><br>调整：${d.value > 0 ? '+' : ''}${d.value.toFixed(2)}%<br>结果：${d.end.toFixed(2)}%`);
+      })
+      .on('mousemove', (event) => {
+        tooltip.style('left', (event.clientX + 12) + 'px').style('top', (event.clientY - 28) + 'px');
+      })
+      .on('mouseout', () => tooltip.style('opacity', 0));
+
+    // Value label
+    g.append('text')
+      .attr('x', x(d.label) + x.bandwidth() / 2)
+      .attr('y', barY - 4)
+      .attr('text-anchor', 'middle')
+      .attr('fill', barColor)
+      .attr('font-size', 10).attr('font-weight', 600)
+      .text((d.value > 0 ? '+' : '') + d.value.toFixed(1) + '%');
+  });
+}
+
+// --- Sankey Chart (D3) ---
+function drawSankey(containerId, data, colorScheme) {
+  const el = document.getElementById(containerId);
+  if (!el || !data || !data.nodes || !data.links) return;
+  d3.select(el).selectAll('*').remove();
+
+  const isDark  = document.documentElement.dataset.theme === 'dark';
+  const textColor = isDark ? '#b8b3a8' : '#3a3a3a';
+
+  const rect   = el.parentElement.getBoundingClientRect();
+  const W      = Math.max(rect.width || 700, 600);
+  const H      = 380;
+  const margin = { top: 10, right: 120, bottom: 10, left: 10 };
+
+  const svg = d3.select(el).attr('width', W).attr('height', H);
+
+  const sankey = d3.sankey()
+    .nodeWidth(18)
+    .nodePadding(14)
+    .extent([[margin.left, margin.top], [W - margin.right, H - margin.bottom]]);
+
+  const graph = sankey({
+    nodes: data.nodes.map(d => Object.assign({}, d)),
+    links: data.links.map(d => Object.assign({}, d))
+  });
+
+  const color = d3.scaleOrdinal()
+    .domain(graph.nodes.map(d => d.name))
+    .range(colorScheme);
+
+  // Links
+  svg.append('g').attr('fill', 'none')
+    .selectAll('path')
+    .data(graph.links).join('path')
+    .attr('d', d3.sankeyLinkHorizontal())
+    .attr('stroke', d => color(d.source.name))
+    .attr('stroke-width', d => Math.max(1, d.width))
+    .attr('opacity', 0.45)
+    .on('mouseover', function() { d3.select(this).attr('opacity', 0.75); })
+    .on('mouseout',  function() { d3.select(this).attr('opacity', 0.45); });
+
+  // Nodes
+  svg.append('g')
+    .selectAll('rect')
+    .data(graph.nodes).join('rect')
+    .attr('x', d => d.x0).attr('y', d => d.y0)
+    .attr('height', d => Math.max(1, d.y1 - d.y0))
+    .attr('width', d => d.x1 - d.x0)
+    .attr('fill', d => color(d.name))
+    .attr('rx', 2);
+
+  // Labels
+  svg.append('g').style('font-size', '12px')
+    .selectAll('text')
+    .data(graph.nodes).join('text')
+    .attr('x', d => d.x0 < W / 2 ? d.x1 + 6 : d.x0 - 6)
+    .attr('y', d => (d.y1 + d.y0) / 2)
+    .attr('dy', '0.35em')
+    .attr('text-anchor', d => d.x0 < W / 2 ? 'start' : 'end')
+    .attr('fill', textColor)
+    .text(d => {
+      const val = d.value >= 1000 ? (d.value / 1000).toFixed(1) + 'bn' : d.value.toFixed(0) + 'm';
+      return d.name + ' ' + val;
+    });
+}
+
+const SANKEY_COLORS_ACTUAL   = ['#355a8a','#a83232','#2e7d4f','#b8842a','#6b4a7c','#3f7a78','#1a2c4e','#a83232','#2e7d4f'];
+const SANKEY_COLORS_FORECAST = ['#4d72a0','#b54545','#3d8c5c','#c89638','#7d5b8e','#4d8d8b','#2d4570','#b54545','#3d8c5c'];
+
+// --- Radar Chart (Chart.js) ---
+let radarCharts = {};
+function porterScoreColor(score) {
+  const s = Math.max(1, Math.min(5, Math.round(Number(score) || 0)));
+  if (s <= 2) return '#2e7d4f';
+  if (s === 3) return '#b8842a';
+  return '#a83232';
+}
+function drawRadar(canvasId, scores, label) {
+  if (radarCharts[canvasId]) { radarCharts[canvasId].destroy(); }
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(26,44,78,0.12)';
+  const textColor = isDark ? '#b8b3a8' : '#3a3a3a';
+  const pointColor = isDark ? '#6ea3d8' : '#1a2c4e';
+  const scoreColors = scores.map(porterScoreColor);
+
+  radarCharts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type: 'radar',
+    data: {
+      labels: ['供应商议价能力', '买方议价能力', '新进入者威胁', '替代品威胁', '行业竞争强度'],
+      datasets: [{
+        label: label,
+        data: scores,
+        backgroundColor: 'rgba(26,44,78,0.12)',
+        borderColor: pointColor,
+        borderWidth: 2,
+        pointBackgroundColor: scoreColors,
+        pointBorderColor: scoreColors,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: false,
+      scales: {
+        r: {
+          min: 0, max: 5,
+          ticks: { stepSize: 1, display: false },
+          grid:  { color: gridColor },
+          angleLines: { color: gridColor },
+          pointLabels: { color: textColor, font: { size: 11 } }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+function redrawAllCharts() {
+  drawWaterfall();
+  drawSankey('chart-sankey-actual',   sankeyActualData,   SANKEY_COLORS_ACTUAL);
+  drawSankey('chart-sankey-forecast', sankeyForecastData, SANKEY_COLORS_FORECAST);
+  drawRadar('chart-radar-company',  porterScores.company,  '公司层面');
+  drawRadar('chart-radar-industry', porterScores.industry, '行业层面');
+  drawRadar('chart-radar-forward',  porterScores.forward,  '前景展望');
+}
+
+// Init on load
+document.addEventListener('DOMContentLoaded', () => {
+  redrawAllCharts();
+});
+window.addEventListener('resize', () => {
+  drawWaterfall();
+  drawSankey('chart-sankey-actual',   sankeyActualData,   SANKEY_COLORS_ACTUAL);
+  drawSankey('chart-sankey-forecast', sankeyForecastData, SANKEY_COLORS_FORECAST);
+});
+</script>
+
+</body>
+</html>

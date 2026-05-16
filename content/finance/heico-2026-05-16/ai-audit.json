@@ -1,0 +1,34 @@
+{
+  "schema": "https://pai.ink/schemas/ai-audit/v1.json",
+  "schema_version": "1.0",
+  "article": {
+    "id": "9deec278-2fdc-48e4-b122-3cc5c5e2e9df",
+    "title": "HEICO",
+    "category": "finance",
+    "language": "zh-CN",
+    "license": "CC-BY-NC-4.0",
+    "published_at": "2026-05-16T02:13:44.316Z",
+    "content_sha256": "26c2d06419de2622eca715c1af0c97537157f837bbd6a2caf220426cea14bc5c",
+    "content_path": "index.html",
+    "assets": [],
+    "word_count": 3115
+  },
+  "skill": {
+    "name": "Anamnesis Research",
+    "repo_url": "https://github.com/pppop00/anamnesis-research",
+    "repo_commit": "e5238cdbf97cfb9dd9a4f46116065e3ebc129a2a"
+  },
+  "generation": {
+    "model": "claude-opus-4-7",
+    "harness": "claude-code-cli"
+  },
+  "author": {
+    "email": "oliverun6@gmail.com",
+    "display_name": "Zelong"
+  },
+  "agreement": {
+    "version": "v2",
+    "sha256": "ec4066647aad291af1e7e88387b3dbfea8c63fce13da3e5ba64f11299793a19d",
+    "accepted_at": "2026-05-16T02:13:44.316Z"
+  }
+}
