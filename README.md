@@ -6,7 +6,7 @@ ties it to a public skill repository, a specific commit, model, and author
 identity. Articles live in two zones today — **Finance** and **Web3** — with
 more to come.
 
-- Static site, IPFS-pinned, served via 4EVERLAND's global CDN
+- Static site on Cloudflare Pages (migrated 2026-05-15 from 4EVERLAND/IPFS; see `docs/HOSTING.md` for the IPFS fallback path)
 - Works in both Mainland China and the US without ICP filing
 - **Submission via web form** at [/submit/](https://www.paiink.com/submit/) — no fork, no PR, no CLI
 - Open standard: `ai-audit/v1` JSON Schema (see `schemas/ai-audit/`)
@@ -51,7 +51,7 @@ paiink/
 │   ├── templates/submit.html         # Submit form (rendered into /submit/)
 │   └── style.css
 ├── docs/
-│   ├── DEPLOY.md                     # 4EVERLAND + domain playbook
+│   ├── DEPLOY.md                     # 4EVERLAND + domain playbook (fallback only — not the live path)
 │   ├── DEPLOY_WORKER.md              # Cloudflare Worker deploy steps (admin only)
 │   └── HOSTING.md                    # Why 4EVERLAND, fallback plans
 └── .github/workflows/verify.yml      # PR-gated manifest validation (legacy path, optional)
@@ -189,7 +189,7 @@ The provenance schema is open and CC0. Re-use it freely. The goal isn't a pai-on
 - [x] Provenance schema `ai-audit/v1`
 - [x] Python validator (`tools/verify_audit.py`)
 - [x] Apache 2.0 license
-- [x] 4EVERLAND deployment live (CN + US verified)
+- [x] Cloudflare Pages deployment live (CN + US verified, CSP enforced at edge)
 - [x] Custom domain `paiink.com` bound
 - [x] Investor protocol v1 (agreement.md hash-pinned)
 - [x] Web upload endpoint (`worker/` — Cloudflare Worker)
