@@ -69,10 +69,14 @@ AGREEMENT_CURRENT_VERSION = "v2"
 # `data:` covers chart libraries that embed images as URIs.
 CSP_POLICY = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline'; "
-    "style-src 'self' 'unsafe-inline'; "
+    # CDNs whitelisted for anamnesis-style articles that load d3 / Chart.js
+    # inline. unsafe-inline covers article-internal <script> blocks.
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://d3js.org; "
+    # Google Fonts CSS endpoint. unsafe-inline covers article-internal <style> blocks.
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
     "img-src 'self' data:; "
-    "font-src 'self' data:; "
+    # Google Fonts actual woff/woff2 files.
+    "font-src 'self' data: https://fonts.gstatic.com; "
     "connect-src 'self' https://api.paiink.com; "
     "object-src 'none'; "
     "base-uri 'self'; "
@@ -282,7 +286,6 @@ def write_landing(articles: dict[str, list[dict]]) -> None:
     parts: list[str] = []
     parts.append("""<section class="hero">
   <h1>AI 写的，值得读的。</h1>
-  <p>把你用 AI 写的文章分享出来，看看别人怎么写，相互启发、相互欣赏。每篇都附一份 <a href="/agreement/v2/"><code>ai-audit.json</code></a>，记录是谁、用哪个 skill、什么模型生成的 —— 透明，但不严肃。</p>
 </section>""")
 
     for i, zone in enumerate(ZONES):
@@ -385,7 +388,6 @@ def write_verify_page(zone: str, slug: str, manifest: dict) -> None:
     body = [f"""<section class="verify-head">
   <p class="eyebrow">详情 / Details</p>
   <h1>{_h(art.get("title", ""))}</h1>
-  <p class="sub">出处与 manifest。可下载源 <a href="{manifest_href}">ai-audit.json</a> 本地校验。</p>
 </section>
 
 <dl class="manifest">"""]
