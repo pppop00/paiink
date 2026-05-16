@@ -2,7 +2,7 @@
   "name": "paiink-api",
   "version": "1.0.0",
   "private": true,
-  "description": "Cloudflare Worker that accepts AI-article submissions for pai.ink and commits them to GitHub.",
+  "description": "Cloudflare Worker — single entrypoint for paiink.com (pages + JSON API + D1/R2 data)",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
@@ -10,6 +10,9 @@
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ulid": "^2.3.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260515.0",

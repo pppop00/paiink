@@ -8,27 +8,65 @@ compatibility_date = "2026-05-15"
 #   Workers & Pages -> paiink-api -> Settings -> Domains & Routes
 #   -> Add Custom Domain: api.paiink.com
 # Done as a Custom Domain (not a Route) because www.paiink.com is DNS-only
-# (grey cloud) for CN reach via BunnyCDN — Routes can't intercept traffic
-# that bypasses CF. The api subdomain gets its own proxied DNS record.
+# (grey cloud) for CN reach. The api subdomain gets its own proxied DNS record.
+# Phase A serves the same Worker on both api.paiink.com and (eventually)
+# www.paiink.com once Pages is retired.
 
 # Secrets (set via `wrangler secret put <NAME>` — never commit them):
-#   GITHUB_TOKEN  — Fine-grained PAT for pppop00/paiink with:
-#                     Repository: pppop00/paiink
-#                     Permissions: Contents: Read and write
-#                     (no other scopes; nothing user-impersonating)
+#   GITHUB_TOKEN     — Anonymous-equivalent PAT used ONLY for skill repo
+#                      public/commit verification. No write scopes; never
+#                      touches paiink content (D1/R2 are our source of truth).
+#   TURNSTILE_SECRET — Reserved for Phase B signup/login. Unused in Phase A.
 #
-# Local dev: put GITHUB_TOKEN in worker/.dev.vars (gitignored).
+# Local dev: put both in worker/.dev.vars (gitignored).
 
-# KV namespace for IP rate limiting (3 submissions/IP/day). Fail-soft:
+# ---- bindings ----
+
+# D1: canonical relational store (users, articles, likes, sessions,
+# api_tokens, rate_limits). Created via `wrangler d1 create paiink`; copy
+# the printed database_id into the field below.
+[[d1_databases]]
+binding = "DB"
+database_name = "paiink"
+database_id = ""  # FILL ME after `wrangler d1 create paiink`
+migrations_dir = "migrations"
+
+# R2: article HTML + manifest + agreements + schema + export bundles.
+# Bucket name must match the dashboard. Created via
+# `wrangler r2 bucket create paiink-content`.
+[[r2_buckets]]
+binding = "R2_CONTENT"
+bucket_name = "paiink-content"
+
+# KV: hot cache for top-likes ranking (Phase C onward). Phase A leaves
+# the binding optional — runtime code must handle env.KV_CACHE === undefined.
+# Created via `wrangler kv namespace create paiink-cache`.
+[[kv_namespaces]]
+binding = "KV_CACHE"
+id = ""  # FILL ME after `wrangler kv namespace create paiink-cache`
+
+# KV namespace for legacy IP rate limiting (3 submissions/IP/day). Fail-soft:
 # if the namespace is somehow unreachable at runtime, the Worker lets
 # the request through rather than 500-ing. Stack with Cloudflare WAF
 # rate-limit rules for hard edge-level limits.
 #
 # Created via `npx wrangler kv namespace create paiink-rl` (one-time).
 # Binding name MUST stay "KV_RATE_LIMIT" to match the code (Env interface).
+# Kept around during the Phase A migration; D1 rate_limits is the
+# canonical store going forward.
 [[kv_namespaces]]
 binding = "KV_RATE_LIMIT"
 id = "b33d670c64324d3a8180c0d89563e1d4"
 
+# Workers Static Assets: CSS, fonts, cursor script, favicon. The
+# directory is committed under worker/static/ and uploaded as part of
+# `wrangler deploy`. Stream 2 will populate it from site/style.css etc.
+[assets]
+directory = "./static"
+binding = "ASSETS"
+
+[vars]
+SITE_URL = "https://www.paiink.com"
+
 # Workers free-tier limits: 100k req/day, 10ms CPU/req (we are I/O-bound
-# on GitHub calls so we use mostly wall time, not CPU time).
+# on D1/R2 calls so we use mostly wall time, not CPU time).
