@@ -44,8 +44,10 @@ choice matters:
   CF dashboard under *Workers & Pages → paiink-api → Settings → Domains
   & Routes → Routes*. The user explicitly chose Route after CF prompted
   to "take over" the hostname from the now-retired Pages project. The
-  DNS record itself is a proxied CNAME (orange cloud) pointing wherever
-  CF wants — the Route is what binds the hostname to the Worker.
+  DNS record is a proxied CNAME `www → paiink-api.oliverun6.workers.dev`
+  (orange cloud). The CNAME target is the Worker's own workers.dev URL,
+  so if the Route ever fails the request still hits the same Worker via
+  the origin path (not a stale Pages snapshot).
 - **`api.paiink.com` → Custom Domain**. Same Worker, registered under
   *Domains & Routes → Custom Domains*. Custom Domains are CF's preferred
   binding (they auto-manage the DNS record). We used Custom Domain here
@@ -53,21 +55,36 @@ choice matters:
 
 Both achieve the same end-state ("Worker serves this hostname"); the
 difference is procedural, not behavioral. **Don't try to migrate
-`www.paiink.com` from Route to Custom Domain unprompted** — historical
-CF state from the Pages era can make the migration flaky (Pages may
-still claim the hostname under the hood). If a future task genuinely
-needs Custom Domain semantics, ask first.
+`www.paiink.com` from Route to Custom Domain unprompted** — when CF
+prompts "bind this as a Custom Domain instead?" while editing the
+CNAME, decline. Migrations from Route to Custom Domain can be flaky if
+any historical Pages state lingers. If a future task genuinely needs
+Custom Domain semantics, ask first.
+
+The retired Pages project (`paiink`, paiink.pages.dev) was **deleted on
+2026-05-16** to remove its silent claim on `www.paiink.com` (Pages had
+been claiming the hostname as a "+ 1 other domain" under the hood even
+after the Worker Route took over traffic). GitHub repo `pppop00/paiink`
+is unaffected — only the CF Pages project + its build history are gone.
 
 Bare apex `paiink.com` has **no DNS record** — typing it resolves to
 NXDOMAIN. The legacy 4EVERLAND CNAME
-(`58b47c2fdf4a47e8808a.cname.ddnsweb3.com`) was deleted on 2026-05-16
-once 4EVERLAND was retired. The user explicitly chose NXDOMAIN over a
-redirect-to-www because the maintenance overhead (placeholder A record +
-CF Redirect Rule) wasn't worth it for the few users who'd type the bare
-domain. If we ever want bare → www redirects: add a proxied placeholder
-A record (e.g. `192.0.2.1`, RFC5737), then a CF Redirect Rule on
+(`58b47c2fdf4a47e8808a.cname.ddnsweb3.com`) and the associated
+`TXT paiink.com "dns.verify=58b47c2fdf4a47e8808a"` ownership marker
+were both deleted on 2026-05-16 once 4EVERLAND was retired. The user
+explicitly chose NXDOMAIN over a redirect-to-www because the
+maintenance overhead (placeholder A record + CF Redirect Rule) wasn't
+worth it for the few users who'd type the bare domain. If we ever want
+bare → www redirects: add a proxied placeholder A record (e.g.
+`192.0.2.1`, RFC5737), then a CF Redirect Rule on
 `http.host eq "paiink.com"` → `concat("https://www.paiink.com",
 http.request.uri.path)`.
+
+The remaining DNS records on the zone are legitimate and should stay:
+3× `MX paiink.com → route{1,2,3}.mx.cloudflare.net` (Email Routing),
+`TXT cf2024-1._domainkey` (DKIM signature), `TXT paiink.com "v=spf1
+include:_spf.mx.cloudflare.net ~all"` (SPF), the Worker binding for
+`api.paiink.com`, and the `CNAME www`.
 
 ## Identity (read once, never forget)
 
