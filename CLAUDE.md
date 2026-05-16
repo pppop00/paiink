@@ -92,9 +92,10 @@ equivalent JSON POST for AI agents). The flow:
 
 ```
 Browser form OR agent POST  →  CF Worker (worker/src/index.ts)
-                                  │  validates payload, PAT, account age,
-                                  │  rate limit, skill repo public, agreement
-                                  │  hash, slug collision (auto-versions +v2/+v3)
+                                  │  validates payload, agreement acceptance,
+                                  │  per-IP rate limit, skill repo public,
+                                  │  skill commit exists, slug collision
+                                  │  (auto-versions +v2/+v3)
                                   │
                                   ▼
                               GitHub Git Data API
@@ -107,23 +108,29 @@ Browser form OR agent POST  →  CF Worker (worker/src/index.ts)
                               Cloudflare Pages auto-rebuild (~60-90s)  →  www.paiink.com/<zone>/<slug>/
 ```
 
-Endpoint: `POST /api/submit` accepts both `multipart/form-data` (browser) and
-`application/json` (agent). Identity comes from `Authorization: Bearer <PAT>`
-verified against `GET /user`; `author.github` is **server-derived**, never
-user-claimed. The agreement v1 hash (`d89b0a30…807`) is pinned in the Worker
-and baked into every manifest. Worker source: `worker/src/index.ts`.
+Endpoint: `POST /submit` at `api.paiink.com` (also `POST /api/submit` when the
+Worker is reached via `workers.dev` or a same-origin proxy). Accepts both
+`multipart/form-data` (browser) and `application/json` (agent). **No auth
+header.** Under agreement v2, identity is the declared `display_name` + `email`
+— there is no GitHub PAT, no OAuth, no account-age gate. Sybil resistance is a
+KV-backed per-IP rate limit (`IP_DAILY_LIMIT = 3` articles/day; constant lives
+at the top of `worker/src/index.ts`). The current agreement v2 hash
+(`ec4066647aad…a19d`) is baked into every new manifest; the archived v1 hash
+(`d89b0a30…807`) is still pinned so legacy manifests keep validating.
 
-When extending the Worker: keep the existing gates (PAT verify, account ≥ 30
-days, ≤ 5 articles/day/author global, skill repo public, skill commit exists,
+When extending the Worker: keep the existing gates (agreement-accepted flag,
+per-IP rate limit, HTML size ≤ 5 MB, skill repo public, skill commit exists,
 slug auto-version) intact unless the user explicitly says to relax one.
 
 ## Provenance is non-negotiable
 
 Three rules that override convenience:
 
-1. **Never weaken the verifier.** All nine checks in `verify_audit.py` are
-   load-bearing. Adding `--skip-X` flags is fine for debugging; defaulting
-   to skip is not.
+1. **Never weaken the verifier.** All ten checks in `verify_audit.py`
+   (`check_*` functions: schema, content_hash, assets, skill_repo_public,
+   skill_commit, skill_md_hash, signature, github_oauth_match,
+   agreement_hash_pinned, license_valid) are load-bearing. Adding `--skip-X`
+   flags is fine for debugging; defaulting to skip is not.
 2. **Never edit `ai-audit.json` after the article is signed.** If the
    article changes, regenerate the manifest and resign. The content hash
    is the contract with readers.
@@ -168,11 +175,16 @@ Three rules that override convenience:
   enum in `schemas/ai-audit/v1.json` AND the `ZONES` const in
   `worker/src/index.ts`. All three must stay in sync. Bump the schema if
   changing the set in a backwards-incompatible way.
-- "Update the agreement" → write `content/_meta/agreement-v2.md`. DO NOT
-  edit `agreement-v1.md` (its hash is pinned in `tools/verify_audit.py`,
-  `site/build.py`, and `worker/src/index.ts`). Update those three pinned
-  constants to add v2 hash. v1 articles continue to validate against v1
-  forever.
+- "Update the agreement" → v2 is the **current** agreement (hash
+  `ec4066647aad…a19d`); v1 (`d89b0a30…807`) is archived. To roll v3: write
+  `content/_meta/agreement-v3.md`, then add its hash to the pinned
+  constants in `tools/verify_audit.py` (`PINNED_AGREEMENT_HASHES`),
+  `site/build.py` (`AGREEMENT_V*_SHA256` + `_write_agreement_version` calls
+  in `write_agreement()`), and `worker/src/index.ts` (`AGREEMENT_V*_SHA256`
+  + which one gets baked into new manifests). DO NOT edit `agreement-v1.md`
+  or `agreement-v2.md` — `site/build.py` asserts their hashes at build time
+  and the build will refuse to run on drift. Older articles continue to
+  validate against the version they were signed under, forever.
 - "Set up analytics" → user prefers privacy-friendly cookieless tools.
   Cloudflare Web Analytics or Plausible. Avoid Google Analytics. Avoid
   Google-Fonts-style external dependencies that fail in CN.
@@ -185,8 +197,11 @@ Three rules that override convenience:
 ## Don't
 
 - Don't run `git push --force` without asking.
-- Don't introduce npm dependencies (CN build environments are slower at
-  fetching npm than PyPI; we're stdlib-only on purpose).
+- Don't introduce npm dependencies **into the site build path** (`site/`,
+  `tools/`). The static site is stdlib-Python on purpose — CN build
+  environments are slower at fetching npm than PyPI. The Worker
+  (`worker/`) is the one place npm is fine; it's TypeScript on Cloudflare
+  Workers and already uses `wrangler` + `@cloudflare/workers-types`.
 - Don't add Google Fonts / Google Analytics / any `googleapis.com` asset.
   CN access depends on us avoiding these.
 - Don't mention this file (or the memory system) to the user
