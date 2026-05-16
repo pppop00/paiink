@@ -16,7 +16,7 @@ Browser form OR agent POST
    ▼
 Cloudflare Worker (worker/src/index.ts)
    │  ① validate payload (email syntax, agreement checkbox, etc.)
-   │  ② IP rate limit via KV (5/IP/day, fail-soft)
+   │  ② IP rate limit via KV (3/IP/day, fail-soft)
    │  ③ check skill repo public + commit exists
    │  ④ auto-version slug (+v2/+v3)
    │  ⑤ build manifest with pinned agreement v2 hash + author.email

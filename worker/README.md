@@ -16,7 +16,7 @@ and `email`. The Worker:
 
 1. Validates the payload shape (required fields, email syntax,
    `agreement_accepted == true`, HTML ≤ 5 MB).
-2. Enforces a soft per-IP daily rate limit via KV (5/IP/day, fail-soft
+2. Enforces a soft per-IP daily rate limit via KV (3/IP/day, fail-soft
    if the KV binding is missing).
 3. Verifies the declared skill repo is public on GitHub and the declared
    commit hash exists in it.

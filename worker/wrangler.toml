@@ -19,20 +19,16 @@ compatibility_date = "2026-05-15"
 #
 # Local dev: put GITHUB_TOKEN in worker/.dev.vars (gitignored).
 
-# KV namespace for IP rate limiting (5 submissions/IP/day). Fail-soft:
-# if the binding is missing or the namespace is unreachable, the Worker
-# lets the request through rather than 500-ing. Configure WAF rate-limit
-# rules in the CF dashboard for hard, edge-level limits.
+# KV namespace for IP rate limiting (3 submissions/IP/day). Fail-soft:
+# if the namespace is somehow unreachable at runtime, the Worker lets
+# the request through rather than 500-ing. Stack with Cloudflare WAF
+# rate-limit rules for hard edge-level limits.
 #
-# To enable:
-#   1. CF dashboard -> Workers & Pages -> KV -> Create namespace
-#      Name: paiink-rl  (or anything; only the id matters)
-#   2. Copy the namespace id, paste it below, and uncomment the block.
-#   3. npx wrangler deploy
-#
-# [[kv_namespaces]]
-# binding = "KV_RATE_LIMIT"
-# id = "<paste-namespace-id-here>"
+# Created via `npx wrangler kv namespace create paiink-rl` (one-time).
+# Binding name MUST stay "KV_RATE_LIMIT" to match the code (Env interface).
+[[kv_namespaces]]
+binding = "KV_RATE_LIMIT"
+id = "b33d670c64324d3a8180c0d89563e1d4"
 
 # Workers free-tier limits: 100k req/day, 10ms CPU/req (we are I/O-bound
 # on GitHub calls so we use mostly wall time, not CPU time).

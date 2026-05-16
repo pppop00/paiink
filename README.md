@@ -84,7 +84,7 @@ Optional: **API request ID** (e.g. Anthropic `req_01...`) — recommended for st
 Gating (server-side):
 
 - Skill repo URL must return 200 OK; commit must exist
-- Max 5 articles per IP per UTC day (KV-backed, fail-soft)
+- Max 3 articles per IP per UTC day (KV-backed, fail-soft)
 - Same-slug collisions auto-version as `<slug>-v2`, `<slug>-v3`, …
 - HTML ≤ 5 MB; email must be syntactically valid
 
