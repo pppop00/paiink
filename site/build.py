@@ -80,14 +80,17 @@ CSP_POLICY = (
     "connect-src 'self' https://api.paiink.com; "
     "object-src 'none'; "
     "base-uri 'self'; "
-    "frame-ancestors 'none'"
+    # 'self' (not 'none') so the article chrome wrapper at /<zone>/<slug>/
+    # can iframe the article HTML at /<zone>/<slug>/article.html. Same-origin
+    # only — external sites still blocked by the same directive.
+    "frame-ancestors 'self'"
 )
 
 # Headers file content (Option-A artifact, no-op on current CDN path).
 HEADERS_FILE = f"""/*
   Content-Security-Policy: {CSP_POLICY}
   X-Content-Type-Options: nosniff
-  X-Frame-Options: DENY
+  X-Frame-Options: SAMEORIGIN
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
 """
@@ -660,13 +663,151 @@ def write_submit() -> None:
     )
 
 
+def _article_chrome(zone_key: str, article: dict) -> str:
+    """Tiny iframe wrapper page. The article HTML is byte-identical to what
+    the author submitted; the wrapper just adds a sticky top bar so readers
+    landing from a shared link can get back to pai.ink."""
+    m = article["manifest"]
+    art = m.get("article", {})
+    title = art.get("title", article["slug"])
+    art_id = art.get("id", "")
+    language = art.get("language", "zh-CN")
+    zone = next((z for z in ZONES if z["key"] == zone_key), None)
+    zone_label = _zone_title(zone) if zone else zone_key
+    verify_href = f"../../verify/{art_id}/" if art_id else "../../about.html"
+    # Loads /style.css for typography vars (--serif/--sans/--mono), color vars,
+    # AND the custom cursor rules (@media pointer:fine). The .pai-topbar
+    # rules override only what's specific to this chrome page (sticky bar,
+    # iframe sizing).
+    return f"""<!doctype html>
+<html lang="{_h(language)}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{_h(title)} — pai.ink</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+<style>
+  html, body {{ height: 100%; overflow: hidden; }}
+  .pai-topbar {{
+    position: fixed; top: 0; left: 0; right: 0; height: 48px;
+    background: rgba(243, 235, 213, 0.92);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--hairline);
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 22px; z-index: 100;
+    font-family: var(--sans); font-size: 14px;
+  }}
+  .pai-topbar .brand {{
+    font-family: var(--serif); font-size: 18px; font-weight: 600;
+    font-style: italic; letter-spacing: -0.01em;
+  }}
+  .pai-topbar a {{ color: var(--fg); text-decoration: none; }}
+  .pai-topbar a:hover {{ text-decoration: underline; }}
+  .pai-topbar .sep {{ color: var(--muted); opacity: 0.6; }}
+  .pai-topbar .title {{
+    color: var(--muted); margin-left: auto; max-width: 50%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: var(--serif);
+  }}
+  iframe {{
+    position: fixed; top: 48px; left: 0; right: 0; bottom: 0;
+    width: 100%; height: calc(100% - 48px);
+    border: 0; display: block; background: var(--bg);
+  }}
+  @media (prefers-color-scheme: dark) {{
+    .pai-topbar {{ background: rgba(20, 19, 15, 0.88); }}
+  }}
+</style>
+</head>
+<body>
+<nav class="pai-topbar" aria-label="pai.ink site navigation">
+  <a class="brand" href="../../">pai.ink</a>
+  <span class="sep" aria-hidden="true">·</span>
+  <a href="../">{_h(zone_label)}</a>
+  <span class="sep" aria-hidden="true">·</span>
+  <a href="{verify_href}">详情</a>
+  <span class="title" title="{_h(title)}">{_h(title)}</span>
+</nav>
+<iframe src="article.html" title="{_h(title)}" loading="eager"></iframe>
+<script>
+(function () {{
+  if (!window.matchMedia('(pointer: fine)').matches) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.createElement('div');
+  c.className = 'cursor';
+  document.body.appendChild(c);
+  let x = 0, y = 0, raf = 0;
+  window.addEventListener('mousemove', function (e) {{
+    x = e.clientX; y = e.clientY;
+    if (!raf) raf = requestAnimationFrame(function () {{
+      c.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0) translate(-50%,-50%)';
+      raf = 0;
+    }});
+  }}, {{ passive: true }});
+  document.addEventListener('mouseleave', function () {{ c.classList.add('hidden'); }});
+  document.addEventListener('mouseenter', function () {{ c.classList.remove('hidden'); }});
+  const sel = 'a, button, summary, input, textarea, label, [role="button"], [data-clickable]';
+  document.addEventListener('mouseover', function (e) {{
+    if (e.target && e.target.closest && e.target.closest(sel)) c.classList.add('hovering');
+  }});
+  document.addEventListener('mouseout', function (e) {{
+    if (e.target && e.target.closest && e.target.closest(sel)) c.classList.remove('hovering');
+  }});
+}})();
+</script>
+</body>
+</html>
+"""
+
+
 def copy_articles(articles: dict[str, list[dict]]) -> None:
+    """Each article dir at /<zone>/<slug>/ gets three files in dist:
+      - index.html  : chrome wrapper with a back-link top bar + iframe
+      - article.html: the article HTML byte-identical to the source (the file
+                      hashed in the manifest's content_sha256)
+      - ai-audit.json: the manifest, with content_path rewritten to
+                      'article.html' so verifiers fetch the right file
+    Source files in content/<zone>/<slug>/ stay unchanged — only the deployed
+    layout differs."""
     for zone_key, items in articles.items():
         for a in items:
             dst = DIST / zone_key / a["slug"]
             if dst.exists():
                 shutil.rmtree(dst)
-            shutil.copytree(a["dir"], dst)
+            dst.mkdir(parents=True)
+
+            manifest = a["manifest"]
+            src_content_path = manifest.get("article", {}).get("content_path", "index.html")
+            article_src = a["dir"] / src_content_path
+            manifest_src = a["dir"] / "ai-audit.json"
+
+            # Copy article HTML verbatim, but to article.html (so the wrapper
+            # can own index.html).
+            shutil.copy(article_src, dst / "article.html")
+
+            # Rewrite manifest's content_path so the SERVED manifest matches
+            # the served file structure. content_sha256 is unchanged — it
+            # still hashes the same bytes, just at a different filename.
+            served_manifest = json.loads(manifest_src.read_text())
+            served_manifest["article"]["content_path"] = "article.html"
+            (dst / "ai-audit.json").write_text(
+                json.dumps(served_manifest, indent=2, ensure_ascii=False) + "\n"
+            )
+
+            # Copy any non-article files (cards/, additional assets) verbatim
+            # so iframe-referenced relative paths still resolve.
+            for entry in a["dir"].iterdir():
+                if entry.name in {src_content_path, "ai-audit.json"}:
+                    continue
+                if entry.is_file():
+                    shutil.copy(entry, dst / entry.name)
+                elif entry.is_dir():
+                    shutil.copytree(entry, dst / entry.name)
+
+            # Generate the chrome wrapper that browsers land on.
+            (dst / "index.html").write_text(_article_chrome(zone_key, a))
 
 
 def main() -> None:
