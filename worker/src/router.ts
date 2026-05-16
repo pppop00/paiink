@@ -44,6 +44,7 @@ import {
   handleRevokeToken,
 } from "./api/tokens";
 import { handleRetract } from "./api/retract";
+import { handleLike, handleUnlike } from "./api/likes";
 import { getCurrentUser } from "./util/auth_middleware";
 import { getSchemaBytes } from "./r2";
 
@@ -209,10 +210,35 @@ async function dispatch(
     return handleRetract(req, env, user, mRetract[1] as string);
   }
 
-  // -------- GET /agreement/v1 | v2 --------
-  // Accept both /agreement/v2 and /agreement/v2/ for compat with the
-  // static-site URLs that always had a trailing slash.
-  const mAgreement = /^\/agreement\/(v[12])\/?$/.exec(path);
+  // -------- POST/DELETE /api/articles/<uuid>/like --------
+  // Phase C. Auth model is cookie-session-only — we explicitly reject
+  // Bearer-token callers with 403 so an agent can't like-spam. The
+  // 401 path is for "no auth at all", the 403 path is for "you sent
+  // a token but tokens aren't allowed here". See api/likes.ts header.
+  const mLike = /^\/api\/articles\/([A-Za-z0-9-]+)\/like\/?$/.exec(path);
+  if ((method === "POST" || method === "DELETE") && mLike) {
+    const user = await getCurrentUser(req, env);
+    if (!user) {
+      if (req.headers.get("Authorization")) {
+        throw new HttpError(
+          403,
+          "auth",
+          "likes require a logged-in browser session, not an API token",
+        );
+      }
+      throw new HttpError(401, "unauthorized", "log in to like articles");
+    }
+    const uuid = mLike[1] as string;
+    return method === "POST"
+      ? handleLike(req, env, user, uuid)
+      : handleUnlike(req, env, user, uuid);
+  }
+
+  // -------- GET /agreement/v1 | v2 | v3 --------
+  // Accept both /agreement/vN and /agreement/vN/ for compat with the
+  // static-site URLs that always had a trailing slash. Specific versions
+  // that aren't pinned in pages/agreement.ts will 404 there.
+  const mAgreement = /^\/agreement\/(v\d+)\/?$/.exec(path);
   if (method === "GET" && mAgreement) {
     return renderAgreement(req, env, mAgreement[1]);
   }
@@ -286,15 +312,14 @@ async function dispatch(
 }
 
 function isPhaseBOrLaterRoute(path: string): boolean {
-  // Phase B (auth pages, sessions, tokens, retract) is shipped — those
-  // paths now have live handlers above. Remaining stubs are Phase C
-  // (skills directory, likes) and Phase E (feed, sitemap).
+  // Phase B (auth, sessions, tokens, retract) and Phase C (likes) are
+  // shipped — those paths now have live handlers above. Remaining
+  // stubs are skills directory and Phase E (feed, sitemap).
   return (
     path === "/skills" ||
     path.startsWith("/skills/") ||
     path === "/feed.xml" ||
-    path === "/sitemap.xml" ||
-    path.startsWith("/api/articles/")
+    path === "/sitemap.xml"
   );
 }
 

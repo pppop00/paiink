@@ -1143,3 +1143,60 @@ details.manual-fallback[open] > summary { margin-bottom: 18px; }
   margin: 0 0 6px;
 }
 .profile-head .handle { color: var(--muted); font-size: 14px; margin: 0; }
+
+/* ============================================================
+   Like buttons (Phase C)
+   - Used in .article-side, /me 收藏 rows, and the /verify title.
+   - Renders as a small pill with an inline heart SVG + count.
+   - Logged-out viewers see an <a> styled identically; logged-in
+     viewers see a <button> that toggles via inline JS in shell.ts.
+   ============================================================ */
+.like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-family: var(--sans);
+  font-size: 13px;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  color: var(--muted);
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 120ms ease, border-color 120ms ease;
+  line-height: 1;
+}
+.like-btn:hover { color: var(--fg); border-color: var(--fg); }
+.like-btn.liked { color: #c54; border-color: #c54; }
+.like-btn.liked:hover { color: #b13c2c; border-color: #b13c2c; }
+.like-btn .heart { width: 12px; height: 12px; display: inline-block; }
+.like-btn .count {
+  font-feature-settings: "tnum";
+  min-width: 14px;
+  text-align: left;
+}
+
+/* The .article-side column already stacks vertically; the heart sits
+   under the "详情" link. On narrow viewports article-side becomes a
+   horizontal row, and the heart inherits that layout for free. */
+
+/* Verify-page title row — title + heart on one line */
+.verify-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  justify-content: space-between;
+}
+.verify-title-row h1 { flex: 1; margin: 0; }
+
+/* Landing "all-zones" deep-link strip (replaces per-zone sections) */
+.zone-nav {
+  margin-top: 48px;
+  padding-top: 28px;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}

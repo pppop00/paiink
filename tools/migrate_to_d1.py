@@ -61,10 +61,12 @@ R2_BUCKET = "paiink-content"
 
 AGREEMENT_V1_SHA256 = "d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807"
 AGREEMENT_V2_SHA256 = "ec4066647aad291af1e7e88387b3dbfea8c63fce13da3e5ba64f11299793a19d"
+AGREEMENT_V3_SHA256 = "4d2360584dc3442eafe534345428988f1e103474dbe4da51d1001809015ca173"
 
 PINNED_HASHES = {
     "v1": AGREEMENT_V1_SHA256,
     "v2": AGREEMENT_V2_SHA256,
+    "v3": AGREEMENT_V3_SHA256,
 }
 
 DEFAULT_LICENSE = "CC-BY-NC-4.0"
@@ -307,6 +309,11 @@ def build_shell(articles: list[dict]) -> str:
         f"--file content/_meta/agreement-v2.md "
         f"--content-type 'text/markdown; charset=utf-8'"
     )
+    lines.append(
+        f"$WRANGLER r2 object put {R2_BUCKET}/agreements/agreement-v3.md "
+        f"--file content/_meta/agreement-v3.md "
+        f"--content-type 'text/markdown; charset=utf-8'"
+    )
     lines.append("")
     lines.append("echo '== uploading schema mirror =='")
     lines.append(
@@ -324,7 +331,7 @@ def main() -> int:
     if not CONTENT_DIR.exists():
         print(f"FATAL: {CONTENT_DIR} not found", file=sys.stderr)
         return 1
-    for must in [META_DIR / "agreement-v1.md", META_DIR / "agreement-v2.md", SCHEMA_PATH]:
+    for must in [META_DIR / "agreement-v1.md", META_DIR / "agreement-v2.md", META_DIR / "agreement-v3.md", SCHEMA_PATH]:
         if not must.exists():
             print(f"FATAL: required input missing: {must}", file=sys.stderr)
             return 1

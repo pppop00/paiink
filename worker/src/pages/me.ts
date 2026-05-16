@@ -1,10 +1,12 @@
 /**
  * GET /me — the logged-in user's dashboard.
  *
- * Three sections:
+ * Four sections:
  *   1. Header — display name, handle, email, logout.
  *   2. My articles — newest first, retract button on each live one.
- *   3. API tokens — list + inline create form. New plaintext is shown
+ *   3. 收藏 / Likes — articles the user has hearted, newest-like-first.
+ *      Added in Phase C; doubles as a bookmarks list.
+ *   4. API tokens — list + inline create form. New plaintext is shown
  *      ONCE in a green banner; the server never persists it.
  *
  * Layout uses .wrap--wide and the .me-head / .me-section / .me-articles /
@@ -22,12 +24,14 @@ import type { AuthedUser } from "../util/auth_middleware";
 import {
   listArticlesByUserId,
   listApiTokens,
+  listArticlesLikedByUser,
   type ApiTokenSafe,
 } from "../db/queries";
 import { shell } from "../templates/shell";
 import { escape, displayDate } from "../util/html";
 import { getLocale } from "../util/locale";
 import { t, type Locale } from "../i18n";
+import { articleRow } from "./_article_row";
 
 function articleLi(a: ArticleRow, locale: Locale): string {
   const href = `/${a.zone}/${a.slug}/`;
@@ -256,9 +260,10 @@ export async function renderMe(
   user: AuthedUser,
 ): Promise<Response> {
   const locale = getLocale(req);
-  const [articles, tokens] = await Promise.all([
+  const [articles, tokens, liked] = await Promise.all([
     listArticlesByUserId(env.DB, user.id),
     listApiTokens(env.DB, user.id),
+    listArticlesLikedByUser(env.DB, user.id, { limit: 50 }),
   ]);
 
   const liveCount = articles.filter((a) => !a.retracted_at).length;
@@ -266,6 +271,21 @@ export async function renderMe(
   const articlesHtml = articles.length === 0
     ? `<p class="empty">${escape(t(locale, "me.no_articles"))} <a href="/submit">${escape(t(locale, "me.no_articles_link"))}</a></p>`
     : `<ul class="me-articles">${articles.map((a) => articleLi(a, locale)).join("\n")}</ul>`;
+
+  // The "收藏" section uses the standard article-row layout (heart
+  // visible + filled) rather than the dense me-articles list. Every
+  // entry here is something the user has liked, so liked=true for all.
+  const likedHtml = liked.length === 0
+    ? `<p class="empty">${escape(t(locale, "me.no_likes"))}</p>`
+    : `<ul class="articles">${liked
+        .map(
+          (a) =>
+            `<li>${articleRow(a, locale, {
+              liked: true,
+              logged_in: true,
+            })}</li>`,
+        )
+        .join("\n")}</ul>`;
 
   const tokensHtml = tokens.length === 0
     ? `<li><span class="when" style="opacity:0.7">${escape(t(locale, "me.token_none"))}</span></li>`
@@ -292,10 +312,15 @@ export async function renderMe(
 
 <section class="me-section">
   <div class="head">
-    <h2>${escape(t(locale, "me.api_tokens"))}</h2>
-    <p class="hint">${escape(t(locale, "me.token_hygiene_hint"))}</p>
+    <h2>${escape(t(locale, "me.likes"))}</h2>
   </div>
-  <p>${t(locale, "me.token_blurb")}</p>
+  ${likedHtml}
+</section>
+
+<section class="me-section">
+  <div class="head">
+    <h2>${escape(t(locale, "me.api_tokens"))}</h2>
+  </div>
 
   <form id="create-token-form" class="token-create">
     <input type="text" name="name" required maxlength="100" placeholder="${escape(t(locale, "me.token_placeholder"))}">

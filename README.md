@@ -10,14 +10,15 @@ more to come.
 - Works in both Mainland China and the US without ICP filing
 - **Submission via web form** at [/submit/](https://www.paiink.com/submit/) — no fork, no PR, no CLI
 - Open standard: `ai-audit/v1` JSON Schema (see `schemas/ai-audit/`)
-- Author-attested AI provenance (≥ 90% AI-generated) per the [投稿协议 v1](https://www.paiink.com/agreement/v1/)
+- Author-attested AI provenance (≥ 90% AI-generated) per the [投稿协议 v3](https://www.paiink.com/agreement/v3/)
 
 ## Live
 
 - Production: [www.paiink.com](https://www.paiink.com)
 - Source: https://github.com/pppop00/paiink (Apache 2.0)
 - Schema: [`/schemas/ai-audit/v1.json`](./schemas/ai-audit/v1.json) (CC0)
-- Agreement v2 (current): [`content/_meta/agreement-v2.md`](./content/_meta/agreement-v2.md), SHA256 `ec4066647aad291af1e7e88387b3dbfea8c63fce13da3e5ba64f11299793a19d`
+- Agreement v3 (current): [`content/_meta/agreement-v3.md`](./content/_meta/agreement-v3.md), SHA256 `4d2360584dc3442eafe534345428988f1e103474dbe4da51d1001809015ca173`
+- Agreement v2 (archived): [`content/_meta/agreement-v2.md`](./content/_meta/agreement-v2.md), SHA256 `ec4066647aad291af1e7e88387b3dbfea8c63fce13da3e5ba64f11299793a19d`
 - Agreement v1 (archived): [`content/_meta/agreement-v1.md`](./content/_meta/agreement-v1.md), SHA256 `d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807`
 
 ## Repo layout
@@ -77,7 +78,7 @@ Required fields:
 | Skill repo commit | 40-hex SHA |
 | Model | e.g. `claude-opus-4-7` |
 | Harness | e.g. `claude-code-cli` |
-| Agreement checkbox | Required — see [Agreement v2](https://www.paiink.com/agreement/v2/) |
+| Agreement checkbox | Required — see [Agreement v3](https://www.paiink.com/agreement/v3/) |
 
 Optional: **API request ID** (e.g. Anthropic `req_01...`) — recommended for stronger audit trail.
 

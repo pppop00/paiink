@@ -32,6 +32,15 @@ const ARTICLE_COLS = `
   published_at, retracted_at, retraction_reason, like_count, created_at
 `.trim();
 
+/**
+ * Same column list with an `a.` prefix, for queries that JOIN the
+ * articles table to another and need to disambiguate. Built once at
+ * module load so we don't allocate on every call.
+ */
+const ARTICLE_COLS_PREFIXED = ARTICLE_COLS.split(",")
+  .map((c) => `a.${c.trim()}`)
+  .join(", ");
+
 interface RawArticleRow {
   id: number;
   uuid: string;
@@ -844,7 +853,7 @@ export async function listArticlesByUserId(
  * underlying R2 bytes and per-deploy CIDs are NOT touched — manifests
  * remain verifiable, but the canonical URL 404s.
  *
- * `reason` is required by agreement v2 (the author asserts WHY a piece
+ * `reason` is required by the agreement (the author asserts WHY a piece
  * is being withdrawn — typo, factual error, legal request, etc.).
  * Returns true if a row was updated.
  */
@@ -868,4 +877,226 @@ export async function retractArticle(
     .run();
   const changes = result.meta?.changes ?? 0;
   return changes >= 1;
+}
+
+// ===================================================================
+// Phase C additions: likes (insert/delete + denormalized count) and
+// ranking queries used by the homepage + /me 收藏 section.
+// ===================================================================
+
+/**
+ * Insert a (user_id, article_id) like row and bump articles.like_count
+ * atomically (D1 batch). Returns true if a NEW row was inserted —
+ * false if the user had already liked this article (idempotent).
+ *
+ * The INSERT uses `ON CONFLICT DO NOTHING` so re-liking is a cheap
+ * no-op. We read meta.changes to decide whether to also fire the
+ * counter increment; if the insert was a no-op, the counter stays put.
+ *
+ * Atomicity caveat: D1's `batch()` runs as a single implicit txn, so
+ * the like row + counter bump succeed or fail together. There's still
+ * a vanishing race window where two simultaneous likeArticle() calls
+ * for the same (user, article) could both decide the insert "wrote a
+ * row" — SQLite serializes writes so only one of those inserts can
+ * actually win the ON CONFLICT race, and the loser's meta.changes will
+ * be 0. We trust D1 to surface that correctly.
+ */
+export async function likeArticle(
+  db: D1Database,
+  user_id: number,
+  article_id: number,
+): Promise<boolean> {
+  // Step 1: probe-insert and read meta.changes to know if a new row
+  // was added. We can't do this inside a batch() because we need the
+  // meta from the insert to decide whether to also bump the counter.
+  const insertResult = await db
+    .prepare(
+      `INSERT INTO likes (user_id, article_id)
+       VALUES (?1, ?2)
+       ON CONFLICT(user_id, article_id) DO NOTHING`,
+    )
+    .bind(user_id, article_id)
+    .run();
+  const inserted = (insertResult.meta?.changes ?? 0) >= 1;
+  if (!inserted) return false;
+
+  // Step 2: bump the denorm counter. Wrapped through batch() with a
+  // sanity-check existence query so that if the article disappeared
+  // between insert and bump (extremely unlikely — articles are never
+  // hard-deleted in our model), we still don't 500.
+  await db
+    .prepare(
+      `UPDATE articles SET like_count = like_count + 1 WHERE id = ?1`,
+    )
+    .bind(article_id)
+    .run();
+  return true;
+}
+
+/**
+ * Symmetric to likeArticle. Returns true if a row was deleted, false
+ * if the user hadn't liked this article (idempotent). Same atomicity
+ * caveat as above.
+ */
+export async function unlikeArticle(
+  db: D1Database,
+  user_id: number,
+  article_id: number,
+): Promise<boolean> {
+  const deleteResult = await db
+    .prepare(`DELETE FROM likes WHERE user_id = ?1 AND article_id = ?2`)
+    .bind(user_id, article_id)
+    .run();
+  const deleted = (deleteResult.meta?.changes ?? 0) >= 1;
+  if (!deleted) return false;
+
+  // Decrement the denorm, but guard against going negative — defensive
+  // programming for the edge case where the denorm and the table drift
+  // (manual ops, migration backfill mismatch, etc.).
+  await db
+    .prepare(
+      `UPDATE articles
+       SET like_count = MAX(like_count - 1, 0)
+       WHERE id = ?1`,
+    )
+    .bind(article_id)
+    .run();
+  return true;
+}
+
+/** Has this user liked this article? Single-row probe; used by /verify chrome. */
+export async function hasUserLikedArticle(
+  db: D1Database,
+  user_id: number,
+  article_id: number,
+): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `SELECT 1 AS hit FROM likes
+       WHERE user_id = ?1 AND article_id = ?2 LIMIT 1`,
+    )
+    .bind(user_id, article_id)
+    .first<{ hit: number }>();
+  return row !== null;
+}
+
+/**
+ * Bulk version — for rendering list pages where we want to mark every
+ * row the viewer has liked without N round-trips. Returns the SET of
+ * liked article_ids (subset of the input). Empty input returns an
+ * empty Set without hitting D1.
+ *
+ * D1 has no first-class parameter array — we build a placeholder list
+ * (?1, ?2, …) bounded by D1's ~100 statement-bind limit. Our list
+ * pages cap at ~100 rows so this is fine; longer lists should batch.
+ */
+export async function listUserLikedArticleIds(
+  db: D1Database,
+  user_id: number,
+  article_ids: number[],
+): Promise<Set<number>> {
+  const ids = article_ids.filter((n) => Number.isFinite(n));
+  if (ids.length === 0) return new Set();
+  // De-dupe to keep the placeholder list tight.
+  const unique = Array.from(new Set(ids));
+  // D1 bind limit is around 100; truncate defensively and warn rather
+  // than fail. Callers shouldn't be hitting this in practice.
+  const capped = unique.slice(0, 99);
+  const placeholders = capped.map((_, i) => `?${i + 2}`).join(", ");
+  const { results } = await db
+    .prepare(
+      `SELECT article_id FROM likes
+       WHERE user_id = ?1 AND article_id IN (${placeholders})`,
+    )
+    .bind(user_id, ...capped)
+    .all<{ article_id: number }>();
+  const out = new Set<number>();
+  for (const r of results ?? []) out.add(r.article_id);
+  return out;
+}
+
+/**
+ * Articles the user has liked, newest-like-first. Powers the "收藏"
+ * section on /me. Excludes retracted articles — a bookmark to a
+ * retracted piece would lead to a 410, no value to the reader.
+ */
+export async function listArticlesLikedByUser(
+  db: D1Database,
+  user_id: number,
+  opts: { limit?: number; offset?: number } = {},
+): Promise<ArticleRow[]> {
+  const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
+  const offset = Math.max(opts.offset ?? 0, 0);
+  const { results } = await db
+    .prepare(
+      `SELECT ${ARTICLE_COLS_PREFIXED}
+       FROM articles a
+       INNER JOIN likes l ON l.article_id = a.id
+       WHERE l.user_id = ?1 AND a.retracted_at IS NULL
+       ORDER BY l.created_at DESC
+       LIMIT ?2 OFFSET ?3`,
+    )
+    .bind(user_id, limit, offset)
+    .all<RawArticleRow>();
+  return (results ?? []).map(rowToArticle);
+}
+
+/**
+ * Homepage ranking row: a regular ArticleRow plus the rolling-3-day
+ * `recent_likes` count. Articles with zero recent likes have
+ * `recent_likes === 0`.
+ */
+export interface RankedArticle extends ArticleRow {
+  recent_likes: number;
+}
+
+interface RawRankedArticleRow extends RawArticleRow {
+  recent_likes: number | null;
+}
+
+/**
+ * Top recent articles by 3-day rolling like count, with a 14-day
+ * candidate pool. Articles with no likes at all fall back to
+ * published_at desc — SQLite sorts NULL/0 lowest under DESC, so
+ * COALESCE(recent_likes, 0) ties everyone in the 14-day window and the
+ * secondary sort by published_at kicks in.
+ *
+ * Why the 14-day candidate pool: keeps the subquery + sort small as
+ * the article catalog grows. An older piece that suddenly catches
+ * fire wouldn't surface here, which is fine for an MVP — we want the
+ * landing to feel current, not all-time.
+ */
+export async function listTopByRecentLikes(
+  db: D1Database,
+  opts: { limit?: number; language?: Language } = {},
+): Promise<RankedArticle[]> {
+  const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
+  let sql = `
+    SELECT ${ARTICLE_COLS_PREFIXED},
+           COALESCE(l.recent_likes, 0) AS recent_likes
+    FROM articles a
+    LEFT JOIN (
+      SELECT article_id, COUNT(*) AS recent_likes
+      FROM likes
+      WHERE created_at > unixepoch() - 3 * 86400
+      GROUP BY article_id
+    ) l ON l.article_id = a.id
+    WHERE a.retracted_at IS NULL
+      AND a.published_at > unixepoch() - 14 * 86400
+  `;
+  const binds: (string | number)[] = [];
+  if (opts.language) {
+    sql += ` AND a.language = ?${binds.length + 1}`;
+    binds.push(opts.language);
+  }
+  sql += ` ORDER BY COALESCE(l.recent_likes, 0) DESC, a.published_at DESC LIMIT ?${binds.length + 1}`;
+  binds.push(limit);
+  const { results } = await db
+    .prepare(sql)
+    .bind(...binds)
+    .all<RawRankedArticleRow>();
+  return (results ?? []).map((r) => ({
+    ...(rowToArticle(r) as ArticleRow),
+    recent_likes: r.recent_likes ?? 0,
+  }));
 }

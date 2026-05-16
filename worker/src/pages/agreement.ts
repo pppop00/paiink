@@ -1,24 +1,22 @@
 /**
- * GET /agreement/v1 and GET /agreement/v2 — rendered agreement pages.
+ * GET /agreement/v1, /agreement/v2, /agreement/v3 — rendered agreement pages.
  *
- * Mirrors site/build.py:_write_agreement_version() (line 596). The bytes
- * come from R2 (uploaded once during Phase A migration) so a stray edit
- * cannot drift the rendered text from the pinned SHA-256. v1 is shown as
- * "archived"; v2 is the current version that new manifests bake into.
+ * Mirrors site/build.py:_write_agreement_version(). The bytes come from R2
+ * (uploaded once per version) so a stray edit cannot drift the rendered text
+ * from the pinned SHA-256. v1 and v2 are shown as "archived"; v3 is the
+ * current version that new manifests bake into.
  *
  * Locale note: the agreement markdown body is byte-pinned legal text and
  * is NOT translated. The chrome around it (eyebrow, archived banner, hash
  * notice) is localized. English visitors also see a short paragraph above
  * the body explaining that the canonical text below is in Chinese.
- *
- * No v3 path in Phase A — that's a Phase D deliverable when the new copy
- * ships and a fresh hash gets added to types.ts.
  */
 
 import type { Env } from "../types";
 import {
   AGREEMENT_V1_SHA256,
   AGREEMENT_V2_SHA256,
+  AGREEMENT_V3_SHA256,
   CURRENT_AGREEMENT_VERSION,
   HttpError,
 } from "../types";
@@ -33,6 +31,7 @@ import { t } from "../i18n";
 const PINNED: Record<string, string> = {
   v1: AGREEMENT_V1_SHA256,
   v2: AGREEMENT_V2_SHA256,
+  v3: AGREEMENT_V3_SHA256,
 };
 
 export async function renderAgreement(

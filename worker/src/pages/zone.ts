@@ -7,10 +7,16 @@
  *
  * Locale: title + lede pulled from the i18n catalog (`zone.<key>.title` /
  * `zone.<key>.lede`). Article rows are localized via _article_row.ts.
+ *
+ * Phase C: bulk-resolves viewer likes via listUserLikedArticleIds() so
+ * the heart button on each row renders with the correct state.
  */
 
 import type { Env, Zone } from "../types";
-import { listArticlesByZone } from "../db/queries";
+import {
+  listArticlesByZone,
+  listUserLikedArticleIds,
+} from "../db/queries";
 import { escape } from "../util/html";
 import { shell } from "../templates/shell";
 import { articleRow } from "./_article_row";
@@ -32,6 +38,15 @@ export async function renderZone(
     listArticlesByZone(env.DB, zone, { limit: 100 }),
   ]);
 
+  let likedIds = new Set<number>();
+  if (user && items.length > 0) {
+    likedIds = await listUserLikedArticleIds(
+      env.DB,
+      user.id,
+      items.map((a) => a.id),
+    );
+  }
+
   const body: string[] = [
     `<section class="page-head">
   <h1>${escape(title)}</h1>
@@ -43,7 +58,12 @@ export async function renderZone(
   } else {
     body.push('<ul class="articles">');
     for (const a of items) {
-      body.push(`<li>${articleRow(a, locale)}</li>`);
+      body.push(
+        `<li>${articleRow(a, locale, {
+          liked: likedIds.has(a.id),
+          logged_in: user !== null,
+        })}</li>`,
+      );
     }
     body.push("</ul>");
   }

@@ -175,16 +175,22 @@ Three rules that override convenience:
   enum in `schemas/ai-audit/v1.json` AND the `ZONES` const in
   `worker/src/index.ts`. All three must stay in sync. Bump the schema if
   changing the set in a backwards-incompatible way.
-- "Update the agreement" → v2 is the **current** agreement (hash
-  `ec4066647aad…a19d`); v1 (`d89b0a30…807`) is archived. To roll v3: write
-  `content/_meta/agreement-v3.md`, then add its hash to the pinned
-  constants in `tools/verify_audit.py` (`PINNED_AGREEMENT_HASHES`),
-  `site/build.py` (`AGREEMENT_V*_SHA256` + `_write_agreement_version` calls
-  in `write_agreement()`), and `worker/src/index.ts` (`AGREEMENT_V*_SHA256`
-  + which one gets baked into new manifests). DO NOT edit `agreement-v1.md`
-  or `agreement-v2.md` — `site/build.py` asserts their hashes at build time
-  and the build will refuse to run on drift. Older articles continue to
-  validate against the version they were signed under, forever.
+- "Update the agreement" → v3 is the **current** agreement (hash
+  `4d23605844dc34…a173`); v2 (`ec4066647aad…a19d`) and v1 (`d89b0a30…807`)
+  are archived. To roll v4: write `content/_meta/agreement-v4.md`, then
+  add its hash to the pinned constants in `tools/verify_audit.py`
+  (`PINNED_AGREEMENT_HASHES`), `worker/src/types.ts` (`AGREEMENT_V*_SHA256`
+  + flip `CURRENT_AGREEMENT_VERSION` / `CURRENT_AGREEMENT_SHA256`),
+  `worker/src/pages/agreement.ts` (`PINNED` map), and
+  `tools/migrate_to_d1.py` (`PINNED_HASHES` + `build_shell()` upload line).
+  Update the form copy and footer link in `worker/src/i18n.ts`,
+  `worker/src/templates/shell.ts`, `worker/src/pages/about.ts`,
+  `worker/src/pages/submit_form.ts` (LLM_INSTRUCTION). Upload the md to
+  R2 (`agreements/agreement-v4.md`). Also bump README's "(current)" line.
+  DO NOT edit `agreement-v1.md`, `agreement-v2.md`, or `agreement-v3.md` —
+  their hashes are pinned and the agreement page re-hashes the R2 bytes
+  at render time. Older articles continue to validate against the version
+  they were signed under, forever.
 - "Set up analytics" → user prefers privacy-friendly cookieless tools.
   Cloudflare Web Analytics or Plausible. Avoid Google Analytics. Avoid
   Google-Fonts-style external dependencies that fail in CN.
@@ -247,8 +253,10 @@ it when you ship a chunk.
 - Turnstile on `POST /api/articles/<uuid>/like` to prevent sybil
 
 **Phase D residual**
-- agreement v3 markdown (current is v2; v3 should remove the "IPFS storage" line — see `content/_meta/agreement-v2.md:44`)
-- Pin v3 hash in `worker/src/types.ts` AND `tools/verify_audit.py:PINNED_AGREEMENT_HASHES` AND drop it into R2
+- (done 2026-05-16) agreement v3 shipped — current is v3 (hash
+  `4d23605844dc34…a173`). v3 reflects D1+R2 storage, accounts, likes,
+  self-service retraction. v1/v2 manifests remain pinned to their
+  respective hashes.
 
 **Phase E** — agent ergonomics
 - `/skills` index page listing every unique skill repo referenced across articles, with article counts

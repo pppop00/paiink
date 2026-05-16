@@ -4,7 +4,7 @@
  * Single source of truth — every other module imports from here. Keep this
  * file in sync with:
  *   • schemas/ai-audit/v1.json (zone / language / license enums)
- *   • content/_meta/agreement-v{1,2}.md (AGREEMENT_V*_SHA256 hashes)
+ *   • content/_meta/agreement-v{1,2,3}.md (AGREEMENT_V*_SHA256 hashes)
  *   • tools/verify_audit.py PINNED_AGREEMENT_HASHES
  *   • site/build.py (until Pages is decommissioned)
  *
@@ -33,13 +33,15 @@ export const AGREEMENT_V1_SHA256 =
   "d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807";
 export const AGREEMENT_V2_SHA256 =
   "ec4066647aad291af1e7e88387b3dbfea8c63fce13da3e5ba64f11299793a19d";
-// AGREEMENT_V3_SHA256 lands in Phase D when the new copy ships. Intentionally
-// absent for Phase A so a typo can't accidentally bake v3 into new manifests.
+export const AGREEMENT_V3_SHA256 =
+  "4d2360584dc3442eafe534345428988f1e103474dbe4da51d1001809015ca173";
 
-// Current agreement version baked into every new manifest in Phase A.
-// Still v2; v3 ships in Phase D alongside the rewritten /submit page.
-export const CURRENT_AGREEMENT_VERSION = "v2";
-export const CURRENT_AGREEMENT_SHA256 = AGREEMENT_V2_SHA256;
+// Current agreement version baked into every new manifest. v3 (2026-05-16)
+// reflects the post-migration reality: D1+R2 storage (not IPFS), accounts,
+// likes/收藏, self-service retraction. v1 and v2 manifests stay pinned to
+// their original hashes forever.
+export const CURRENT_AGREEMENT_VERSION = "v3";
+export const CURRENT_AGREEMENT_SHA256 = AGREEMENT_V3_SHA256;
 
 // ---------- Cloudflare bindings ----------
 

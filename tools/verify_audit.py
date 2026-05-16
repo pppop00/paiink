@@ -62,9 +62,11 @@ SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "ai-audit" / 
 # mutate an existing entry, even to fix a typo — ship a new version instead.
 AGREEMENT_V1_SHA256 = "d89b0a30554743958e704b4d825966fad2eb22b6399bc00d0a15809f8deed807"
 AGREEMENT_V2_SHA256 = "ec4066647aad291af1e7e88387b3dbfea8c63fce13da3e5ba64f11299793a19d"
+AGREEMENT_V3_SHA256 = "4d2360584dc3442eafe534345428988f1e103474dbe4da51d1001809015ca173"
 PINNED_AGREEMENT_HASHES: dict[str, str] = {
     "v1": AGREEMENT_V1_SHA256,
     "v2": AGREEMENT_V2_SHA256,
+    "v3": AGREEMENT_V3_SHA256,
 }
 
 # Allowed values for article.license. Kept in sync with the enum in

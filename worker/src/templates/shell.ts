@@ -158,6 +158,98 @@ document.addEventListener('click', function (e) {
 });
 </script>`;
 
+/**
+ * Like-button handler (Phase C). Listens at the document level so it
+ * works across every page that renders an [data-like-btn] (landing,
+ * zone, profile, /me, /verify). The button carries data-uuid + the
+ * current data-liked state; we POST or DELETE accordingly and update
+ * the DOM optimistically, rolling back on failure.
+ *
+ * The endpoint is cookie-only on the server side (no Bearer tokens —
+ * see api/likes.ts) so credentials:'same-origin' is what matters.
+ */
+const LIKE_SCRIPT = `<script>
+document.addEventListener('click', function (e) {
+  var btn = e.target && e.target.closest && e.target.closest('[data-like-btn]');
+  if (!btn) return;
+  e.preventDefault();
+  if (btn.dataset.likeBusy === '1') return;
+  var uuid = btn.getAttribute('data-uuid');
+  if (!uuid) return;
+  var wasLiked = btn.getAttribute('data-liked') === '1';
+  var nextLiked = !wasLiked;
+  var countEl = btn.querySelector('.count');
+  var oldCount = countEl ? parseInt(countEl.textContent || '0', 10) || 0 : 0;
+  var optimisticCount = Math.max(oldCount + (nextLiked ? 1 : -1), 0);
+
+  // Optimistic flip
+  btn.dataset.likeBusy = '1';
+  btn.setAttribute('data-liked', nextLiked ? '1' : '0');
+  btn.setAttribute('aria-pressed', nextLiked ? 'true' : 'false');
+  btn.classList.toggle('liked', nextLiked);
+  // Swap heart SVG without rebuilding the whole button
+  var svg = btn.querySelector('svg.heart path');
+  if (svg) {
+    if (nextLiked) {
+      svg.setAttribute('fill', 'currentColor');
+      svg.removeAttribute('stroke');
+      svg.removeAttribute('stroke-width');
+    } else {
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '1.4');
+    }
+  }
+  if (countEl) countEl.textContent = String(optimisticCount);
+
+  var method = nextLiked ? 'POST' : 'DELETE';
+  fetch('/api/articles/' + encodeURIComponent(uuid) + '/like', {
+    method: method,
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'Origin': window.location.origin }
+  }).then(function (r) {
+    return r.json().catch(function () { return null; }).then(function (j) {
+      return { ok: r.ok, status: r.status, body: j };
+    });
+  }).then(function (r) {
+    btn.dataset.likeBusy = '';
+    if (r.ok && r.body && typeof r.body.like_count === 'number') {
+      // Server is authoritative.
+      if (countEl) countEl.textContent = String(Math.max(r.body.like_count, 0));
+      return;
+    }
+    if (r.status === 401 || r.status === 403) {
+      // Not logged in or token-auth: bounce to /login with a next= back here.
+      window.location.assign('/login?next=' + encodeURIComponent(window.location.pathname));
+      return;
+    }
+    // Roll back optimistic flip
+    btn.setAttribute('data-liked', wasLiked ? '1' : '0');
+    btn.setAttribute('aria-pressed', wasLiked ? 'true' : 'false');
+    btn.classList.toggle('liked', wasLiked);
+    if (countEl) countEl.textContent = String(oldCount);
+    if (svg) {
+      if (wasLiked) {
+        svg.setAttribute('fill', 'currentColor');
+        svg.removeAttribute('stroke');
+        svg.removeAttribute('stroke-width');
+      } else {
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '1.4');
+      }
+    }
+  }).catch(function () {
+    btn.dataset.likeBusy = '';
+    // Roll back on network error
+    btn.setAttribute('data-liked', wasLiked ? '1' : '0');
+    btn.setAttribute('aria-pressed', wasLiked ? 'true' : 'false');
+    btn.classList.toggle('liked', wasLiked);
+    if (countEl) countEl.textContent = String(oldCount);
+  });
+});
+</script>`;
+
 export function shell(opts: ShellOptions): string {
   const locale: Locale = opts.locale ?? DEFAULT_LOCALE;
   const language = opts.language ?? locale;
@@ -201,7 +293,7 @@ ${opts.body}
   <div>
     <a href="/about">${escape(t(locale, "footer.about"))}</a> ·
     <a href="/submit">${escape(t(locale, "footer.submit"))}</a> ·
-    <a href="/agreement/v2">${escape(t(locale, "footer.agreement"))}</a> ·
+    <a href="/agreement/v3">${escape(t(locale, "footer.agreement"))}</a> ·
     <a href="https://github.com/pppop00/paiink">${escape(t(locale, "footer.source"))}</a> ·
     <a href="https://github.com/pppop00/paiink/blob/main/LICENSE">${escape(t(locale, "footer.license"))}</a> ·
     <a href="/schemas/ai-audit/v1.json">${escape(t(locale, "footer.schema"))}</a>
@@ -211,6 +303,7 @@ ${opts.body}
 ${CURSOR_SCRIPT}
 ${LOGOUT_SCRIPT}
 ${LANG_TOGGLE_SCRIPT}
+${LIKE_SCRIPT}
 </body>
 </html>
 `;

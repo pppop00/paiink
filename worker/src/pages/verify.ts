@@ -16,13 +16,14 @@
 
 import type { Env, Manifest } from "../types";
 import { HttpError } from "../types";
-import { getArticleByUuid } from "../db/queries";
+import { getArticleByUuid, hasUserLikedArticle } from "../db/queries";
 import { getArticleManifest, getArticleManifestBytes } from "../r2";
 import { escape, shortHash } from "../util/html";
 import { shell } from "../templates/shell";
 import { getCurrentUser } from "../util/auth_middleware";
 import { getLocale } from "../util/locale";
 import { t } from "../i18n";
+import { likeButton } from "./_article_row";
 
 export async function renderVerify(
   req: Request,
@@ -41,6 +42,26 @@ export async function renderVerify(
   if (!manifest) {
     throw new HttpError(500, "missing_manifest", `R2 manifest missing for uuid=${uuid}`);
   }
+
+  // Phase C: surface a heart next to the title so readers can like
+  // straight from the manifest page. We don't show it for retracted
+  // articles — they can't be liked anyway (api/likes 404s them).
+  let viewerLiked = false;
+  if (user && row.retracted_at === null) {
+    viewerLiked = await hasUserLikedArticle(env.DB, user.id, row.id);
+  }
+  const heart =
+    row.retracted_at !== null
+      ? ""
+      : likeButton(
+          row.uuid,
+          row.like_count,
+          viewerLiked,
+          user !== null,
+          row.zone,
+          row.slug,
+          locale,
+        );
 
   const art = manifest.article;
   const skill = manifest.skill;
@@ -104,7 +125,10 @@ export async function renderVerify(
   const body: string[] = [
     `<section class="verify-head">
   <p class="eyebrow">${escape(t(locale, "verify.title_eyebrow"))}</p>
-  <h1>${escape(art.title || "")}</h1>
+  <div class="verify-title-row">
+    <h1>${escape(art.title || "")}</h1>
+    ${heart}
+  </div>
 </section>`,
     retractedBanner,
     '<dl class="manifest">',
