@@ -67,18 +67,24 @@ been claiming the hostname as a "+ 1 other domain" under the hood even
 after the Worker Route took over traffic). GitHub repo `pppop00/paiink`
 is unaffected — only the CF Pages project + its build history are gone.
 
-Bare apex `paiink.com` has **no DNS record** — typing it resolves to
-NXDOMAIN. The legacy 4EVERLAND CNAME
+Bare apex `paiink.com` 301-redirects to `https://www.paiink.com/<same-path>`
+via a CF Redirect Rule. Mechanism (set up 2026-05-16 after a real-world
+UX problem — friends typing the bare domain on phones were hitting
+NXDOMAIN):
+
+- DNS: `A paiink.com → 192.0.2.1` (proxied, orange cloud). RFC5737
+  black-hole IP — the address is never contacted because the proxy
+  intercepts the request at the edge. The record exists *only* to make
+  CF claim the hostname so its Rules engine has something to evaluate.
+- Rules → Redirect Rules → "apex → www": when
+  `http.host eq "paiink.com"`, dynamic 301 to
+  `concat("https://www.paiink.com", http.request.uri.path)`. Query
+  string is preserved.
+
+The legacy 4EVERLAND CNAME
 (`58b47c2fdf4a47e8808a.cname.ddnsweb3.com`) and the associated
 `TXT paiink.com "dns.verify=58b47c2fdf4a47e8808a"` ownership marker
-were both deleted on 2026-05-16 once 4EVERLAND was retired. The user
-explicitly chose NXDOMAIN over a redirect-to-www because the
-maintenance overhead (placeholder A record + CF Redirect Rule) wasn't
-worth it for the few users who'd type the bare domain. If we ever want
-bare → www redirects: add a proxied placeholder A record (e.g.
-`192.0.2.1`, RFC5737), then a CF Redirect Rule on
-`http.host eq "paiink.com"` → `concat("https://www.paiink.com",
-http.request.uri.path)`.
+were both deleted on 2026-05-16 before the redirect was installed.
 
 The remaining DNS records on the zone are legitimate and should stay:
 3× `MX paiink.com → route{1,2,3}.mx.cloudflare.net` (Email Routing),
