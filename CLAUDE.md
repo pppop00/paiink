@@ -58,9 +58,16 @@ CF state from the Pages era can make the migration flaky (Pages may
 still claim the hostname under the hood). If a future task genuinely
 needs Custom Domain semantics, ask first.
 
-Bare apex `paiink.com` is currently a DNS-only CNAME to the legacy
-4EVERLAND gateway (`58b47c2fdf4a47e8808a.cname.ddnsweb3.com`). See
-"Current state → Not done" below.
+Bare apex `paiink.com` has **no DNS record** — typing it resolves to
+NXDOMAIN. The legacy 4EVERLAND CNAME
+(`58b47c2fdf4a47e8808a.cname.ddnsweb3.com`) was deleted on 2026-05-16
+once 4EVERLAND was retired. The user explicitly chose NXDOMAIN over a
+redirect-to-www because the maintenance overhead (placeholder A record +
+CF Redirect Rule) wasn't worth it for the few users who'd type the bare
+domain. If we ever want bare → www redirects: add a proxied placeholder
+A record (e.g. `192.0.2.1`, RFC5737), then a CF Redirect Rule on
+`http.host eq "paiink.com"` → `concat("https://www.paiink.com",
+http.request.uri.path)`.
 
 ## Identity (read once, never forget)
 
@@ -305,12 +312,6 @@ shipped through Phase D. Phase E was de-scoped (see below).
 - CSP `frame-src 'self' https://challenges.cloudflare.com` set centrally in `shell.ts` CSP_POLICY AND in the router's response-header default. **Don't add a second `frame-src` directive anywhere** — CSP takes the FIRST occurrence of any directive and silently drops the rest, which broke iframes once already
 
 ### ❌ Not done
-
-- **apex `paiink.com` (no www)** — still points at the legacy 4EVERLAND
-  IPFS gateway via `paiink.com → 58b47c2fdf4a47e8808a.cname.ddnsweb3.com`
-  (DNS only). User decision pending: delete the CNAME (bare domain NXs),
-  or add a CF Redirect Rule `paiink.com/* → https://www.paiink.com/$1`,
-  or repoint via a Worker Route. Recommended: redirect to www.
 
 - **Phase E (de-scoped)** — `/skills` index + `docs/AGENT.md` aren't
   needed:
