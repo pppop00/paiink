@@ -30,6 +30,8 @@ import { renderLogin } from "./pages/login";
 import { renderMe } from "./pages/me";
 import { renderProfile } from "./pages/profile";
 import { renderHttpError, renderNotFound, renderServerError } from "./pages/error";
+import { renderFeed } from "./pages/feed";
+import { renderSitemap } from "./pages/sitemap";
 import { getLocale } from "./util/locale";
 import { DEFAULT_LOCALE, type Locale } from "./i18n";
 
@@ -311,6 +313,16 @@ async function dispatch(
     // unknown top-level: fall through to landing-or-404 logic
   }
 
+  // -------- GET /feed.xml --------
+  if (method === "GET" && path === "/feed.xml") {
+    return renderFeed(req, env);
+  }
+
+  // -------- GET /sitemap.xml --------
+  if (method === "GET" && path === "/sitemap.xml") {
+    return renderSitemap(req, env);
+  }
+
   // -------- GET / --------
   if (method === "GET" && (path === "/" || path === "")) {
     return renderLanding(req, env);
@@ -330,14 +342,10 @@ async function dispatch(
 
 function isPhaseBOrLaterRoute(path: string): boolean {
   // Phase B (auth, sessions, tokens, retract) and Phase C (likes) are
-  // shipped — those paths now have live handlers above. Remaining
-  // stubs are skills directory and Phase E (feed, sitemap).
-  return (
-    path === "/skills" ||
-    path.startsWith("/skills/") ||
-    path === "/feed.xml" ||
-    path === "/sitemap.xml"
-  );
+  // shipped; /feed.xml and /sitemap.xml are now live too. The remaining
+  // stub is the (de-scoped) /skills index — we'll wire it if/when there
+  // are 100+ articles to make it interesting.
+  return path === "/skills" || path.startsWith("/skills/");
 }
 
 function applyCommonHeaders(resp: Response, _req: Request): Response {
@@ -362,11 +370,11 @@ function applyCommonHeaders(resp: Response, _req: Request): Response {
     headers.set(
       "content-security-policy",
       "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://d3js.org https://challenges.cloudflare.com; " +
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://d3js.org https://challenges.cloudflare.com https://static.cloudflareinsights.com; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "img-src 'self' data:; " +
         "font-src 'self' data: https://fonts.gstatic.com; " +
-        "connect-src 'self' https://api.paiink.com; " +
+        "connect-src 'self' https://api.paiink.com https://cloudflareinsights.com; " +
         "frame-src 'self' https://challenges.cloudflare.com; " +
         "object-src 'none'; " +
         "base-uri 'self'; " +

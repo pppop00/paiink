@@ -16,6 +16,7 @@ import { escape } from "../util/html";
 import type { AuthedUser } from "../util/auth_middleware";
 import { ASSET_PATHS } from "../asset-manifest";
 import { DEFAULT_LOCALE, t, type Locale } from "../i18n";
+import { analyticsBeacon } from "../analytics";
 
 /**
  * Content-Security-Policy applied to pai-chrome pages. Matches site/build.py:70
@@ -24,11 +25,11 @@ import { DEFAULT_LOCALE, t, type Locale } from "../i18n";
  */
 export const CSP_POLICY =
   "default-src 'self'; " +
-  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://d3js.org https://challenges.cloudflare.com; " +
+  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://d3js.org https://challenges.cloudflare.com https://static.cloudflareinsights.com; " +
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
   "img-src 'self' data:; " +
   "font-src 'self' data: https://fonts.gstatic.com; " +
-  "connect-src 'self' https://api.paiink.com; " +
+  "connect-src 'self' https://api.paiink.com https://cloudflareinsights.com; " +
   "frame-src 'self' https://challenges.cloudflare.com; " +
   "object-src 'none'; " +
   "base-uri 'self'; " +
@@ -305,6 +306,7 @@ ${CURSOR_SCRIPT}
 ${LOGOUT_SCRIPT}
 ${LANG_TOGGLE_SCRIPT}
 ${LIKE_SCRIPT}
+${analyticsBeacon()}
 </body>
 </html>
 `;
